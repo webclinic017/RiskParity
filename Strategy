@@ -1,0 +1,27 @@
+import numpy as np
+import pandas as pd
+import yfinance as yf
+import riskfolio as rp
+from IPython.display import display
+
+
+yf.pdr_override()
+pd.options.display.float_format = '{:.4%}'.format
+
+# Date range
+start = '2016-01-01'
+end = '2019-12-30'
+
+# Tickers of assets
+assets = ['TQQQ','TLT','SPY','AAAU','ICLN','IWM','STIP',]
+
+assets.sort()
+
+# Downloading data
+data = yf.download(assets, start = start, end = end)
+data = data.loc[:,('Adj Close', slice(None))]
+data.columns = assets
+# Calculating returns
+Y = data[assets].pct_change().dropna()
+
+display(Y.head())
