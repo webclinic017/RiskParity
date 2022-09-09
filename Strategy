@@ -2,7 +2,15 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 import warnings
+import requests
 import riskfolio as rp
+import urllib as urllib
+from zipfile import ZipFile
+import io
+from io import StringIO
+from io import BytesIO
+from openpyxl import load_workbook
+
 
 warnings.filterwarnings("ignore")
 pd.options.display.float_format = '{:.4%}'.format
@@ -13,15 +21,14 @@ end = '2019-12-30'
 
 # Downloading parameters
 def excel_download():
-    xls = pd.ExcelFile(r'C:\Users\Kit\Documents\Risk_Parity\RiskParity\RiskParity_Holdings.xlsx')
-    assets = pd.read_excel(xls, 'RiskParity_Holdings', columns=['Asset', 'Industry'])
-    constraints = pd.read_excel(xls, 'Constraints', columns=['Disabled','Type','Set','Position','Sign','Weight',
-                                                            'Type_Relative','Relative_Set',
-                                                            'Relative','Factor'])
-    assets = assets.reindex(columns=['Asset','Industry'])
+    constraint_url = "https://raw.githubusercontent.com/ra6it/RiskParity/main/RiskParity_Holdings.csv"
+    download = requests.get(constraint_url).content
+    assets = pd.read_csv(io.StringIO(download.decode('utf-8')),usecols = ['Asset','Industry'])
+    constraints = pd.read_csv(io.StringIO(download.decode('utf-8')), usecols = ['Disabled','Type','Set','Position','Sign','Weight','Type_Relative','Relative_Set','Relative','Factor'])
+    
     constraints = constraints.fillna('')
-    asset_classes = {'Assets': assets['Asset'].tolist(), 
-                     'Industry': assets['Industry'].tolist()}
+    asset_classes = {'Assets': assets['Asset'].values.tolist(), 
+                     'Industry': assets['Industry'].values.tolist()}
     assets = asset_classes['Assets']
     return assets, constraints
         
@@ -49,19 +56,19 @@ def create_pie(w):
     ax = rp.plot_pie(w=w, title='Sharpe Mean Variance', others=0.05, nrow=25, cmap = "tab20",
                  height=6, width=10, ax=None)
 
-def efficient_frontier(points):
+def efficient_frontier(model,rm,obj,hist,rf,l,points,port):
     frontier = port.efficient_frontier(model=model, rm=rm, points=points, rf=rf, hist=hist)
-    display(frontier.T.head())
+    print(frontier.T.head())
     
-def runner():
+def runner(model,rm,obj,hist,rf,l,points):
     assets, constraints = excel_download()
     method_mu, method_cov = method()
     port = portfolio_object(assets,method_mu, method_cov)
     w = port.optimization(model=model, rm=rm, obj=obj, rf=rf, l=l, hist=hist)
+    efficient_frontier(model,rm,obj,hist,rf,l,points, port)
+    print(w)
     create_pie(w)
-
-
-    
+   
 
 #########################################Parameters##########################################
 model='Classic' # Could be Classic (historical), BL (Black Litterman) or FM (Factor Model)
@@ -72,5 +79,4 @@ rf = 0 # Risk free rate
 l = 1 # Risk aversion factor, only useful when obj is 'Utility'
 points = 50 # Number of points of the frontier
 
-runner()
-
+runner(model,rm,obj,hist,rf,l,points)
