@@ -1,27 +1,76 @@
 import numpy as np
 import pandas as pd
 import yfinance as yf
+import warnings
 import riskfolio as rp
-from IPython.display import display
 
-
-yf.pdr_override()
+warnings.filterwarnings("ignore")
 pd.options.display.float_format = '{:.4%}'.format
 
 # Date range
 start = '2016-01-01'
 end = '2019-12-30'
 
-# Tickers of assets
-assets = ['TQQQ','TLT','SPY','AAAU','ICLN','IWM','STIP',]
-
-assets.sort()
-
+# Downloading parameters
+def excel_download():
+    xls = pd.ExcelFile(r'C:\Users\Kit\Documents\Risk_Parity\RiskParity\RiskParity_Holdings.xlsx')
+    assets = pd.read_excel(xls, 'RiskParity_Holdings', columns=['Asset', 'Industry'])
+    constraints = pd.read_excel(xls, 'Constraints', columns=['Disabled','Type','Set','Position','Sign','Weight',
+                                                            'Type_Relative','Relative_Set',
+                                                            'Relative','Factor'])
+    assets = assets.reindex(columns=['Asset','Industry'])
+    constraints = constraints.fillna('')
+    asset_classes = {'Assets': assets['Asset'].tolist(), 
+                     'Industry': assets['Industry'].tolist()}
+    assets = asset_classes['Assets']
+    return assets, constraints
+        
 # Downloading data
-data = yf.download(assets, start = start, end = end)
-data = data.loc[:,('Adj Close', slice(None))]
-data.columns = assets
-# Calculating returns
-Y = data[assets].pct_change().dropna()
+def data_download(assets):
+    data = yf.download(assets, start = start, end = end)
+    data = data.loc[:,('Adj Close', slice(None))]
+    Y = data.pct_change().dropna()
+    return Y
+    
+# Select method and estimate input parameters:
+def method():
+    method_mu='hist' # Method to estimate expected returns based on historical data.
+    method_cov='hist' # Method to estimate covariance matrix based on historical data.
+    return method_mu, method_cov
 
-display(Y.head())
+# Estimate optimal portfolio:
+
+def portfolio_object(assets,method_mu, method_cov):
+    port = rp.Portfolio(returns=data_download(assets))
+    port.assets_stats(method_mu=method_mu, method_cov=method_cov, d=0.94)
+    return port
+
+def create_pie(w):
+    ax = rp.plot_pie(w=w, title='Sharpe Mean Variance', others=0.05, nrow=25, cmap = "tab20",
+                 height=6, width=10, ax=None)
+
+def efficient_frontier(points):
+    frontier = port.efficient_frontier(model=model, rm=rm, points=points, rf=rf, hist=hist)
+    display(frontier.T.head())
+    
+def runner():
+    assets, constraints = excel_download()
+    method_mu, method_cov = method()
+    port = portfolio_object(assets,method_mu, method_cov)
+    w = port.optimization(model=model, rm=rm, obj=obj, rf=rf, l=l, hist=hist)
+    create_pie(w)
+
+
+    
+
+#########################################Parameters##########################################
+model='Classic' # Could be Classic (historical), BL (Black Litterman) or FM (Factor Model)
+rm = 'MV' # Risk measure used, this time will be variance
+obj = 'Sharpe' # Objective function, could be MinRisk, MaxRet, Utility or Sharpe
+hist = True # Use historical scenarios for risk measures that depend on scenarios
+rf = 0 # Risk free rate
+l = 1 # Risk aversion factor, only useful when obj is 'Utility'
+points = 50 # Number of points of the frontier
+
+runner()
+
