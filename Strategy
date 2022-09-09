@@ -27,10 +27,16 @@ def excel_download():
     constraints = pd.read_csv(io.StringIO(download.decode('utf-8')), usecols = ['Disabled','Type','Set','Position','Sign','Weight','Type_Relative','Relative_Set','Relative','Factor'])
     
     constraints = constraints.fillna('')
+    constraints[0] = np.arange(len(constraints))
+
     asset_classes = {'Assets': assets['Asset'].values.tolist(), 
                      'Industry': assets['Industry'].values.tolist()}
     assets = asset_classes['Assets']
-    return assets, constraints
+    asset_classes=pd.DataFrame.from_dict(asset_classes)
+
+    print(constraints.info(), constraints)
+
+    return assets, constraints,asset_classes
         
 # Downloading data
 def data_download(assets):
@@ -59,15 +65,18 @@ def create_pie(w):
 def efficient_frontier(model,rm,obj,hist,rf,l,points,port):
     frontier = port.efficient_frontier(model=model, rm=rm, points=points, rf=rf, hist=hist)
     print(frontier.T.head())
-    
-def runner(model,rm,obj,hist,rf,l,points):
-    assets, constraints = excel_download()
+
+def constraints_weightings(constraints,asset_classes,assets):
+    A, B = rp.assets_constraints(constraints, assets)
+
+
+def runner(model,rm,obj,hist,rf,l,points,):
+    assets, constraints,asset_classes = excel_download()
     method_mu, method_cov = method()
     port = portfolio_object(assets,method_mu, method_cov)
     w = port.optimization(model=model, rm=rm, obj=obj, rf=rf, l=l, hist=hist)
     efficient_frontier(model,rm,obj,hist,rf,l,points, port)
-    print(w)
-    create_pie(w)
+    constraints_weightings(asset_classes,constraints,assets)
    
 
 #########################################Parameters##########################################
@@ -80,3 +89,5 @@ l = 1 # Risk aversion factor, only useful when obj is 'Utility'
 points = 50 # Number of points of the frontier
 
 runner(model,rm,obj,hist,rf,l,points)
+
+
