@@ -27,8 +27,7 @@ def excel_download():
     constraints = pd.read_csv(io.StringIO(download.decode('utf-8')), usecols = ['Disabled','Type','Set','Position','Sign','Weight','Type_Relative','Relative_Set','Relative','Factor'])
     
     constraints = constraints.fillna('')
-    constraints[0] = np.arange(len(constraints))
-
+    constraints['index'] = constraints.index
     asset_classes = {'Assets': assets['Asset'].values.tolist(), 
                      'Industry': assets['Industry'].values.tolist()}
     assets = asset_classes['Assets']
