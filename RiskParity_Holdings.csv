@@ -1,0 +1,8 @@
+﻿Index,Disabled,Type,Set,Position,Sign,Weight,Type_Relative,Relative_Set,Relative,Factor
+1,FALSE,Classes,Industry,Bond,>=,0.2,,,,
+2,FALSE,Classes,Industry,Equities,>=,0.2,,,,
+3,FALSE,Classes,Industry,Renewables,>=,0.1,,,,
+4,FALSE,Classes,Industry,Energies,>=,0.2,,,,
+5,FALSE,Classes,Industry,Healthcare,>=,0.1,,,,
+6,FALSE,Classes,Industry,Metals,>=,0.2,,,,
+7,FALSE,Asset,Class 1,SPY,>=,0.2,,,,
