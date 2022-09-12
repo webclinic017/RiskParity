@@ -1,9 +1,9 @@
-﻿Asset,Industry,Disabled,Type,Set,Position,Sign,Weight,Type_Relative,Relative_Set,Relative,Factor
-TLT,Bonds,False,Classes,Industry,Bond,>=,0.2,,,,
-STIP,Bonds,False,Classes,Industry,Equities,>=,0.2,,,,
-SPY,Equities,False,Classes,Industry,Renewables,>=,0.1,,,,
-QQQ,Equities,False,Classes,Industry,Energies,>=,0.2,,,,
-ICLN,Renewables,False,Classes,Industry,Healthcare,>=,0.1,,,,
-IUES.L,Energies,False,Classes,Industry,Metals,>=,0.2,,,,
-XLV,Healthcare,False,Asset,Class 1,SPY,>=,0.2,,,,
-AAAU,Metals,,,,,,,,,,
+﻿Asset,Industry,Index,Disabled,Type,Set,Position,Sign,Weight,Type_Relative,Relative_Set,Relative,Factor
+TLT,Bonds,1,False,Classes,Industry,Bond,>=,0.2,,,,
+STIP,Bonds,2,False,Classes,Industry,Equities,>=,0.2,,,,
+SPY,Equities,3,False,Classes,Industry,Renewables,>=,0.1,,,,
+QQQ,Equities,4,False,Classes,Industry,Energies,>=,0.2,,,,
+ICLN,Renewables,5,False,Classes,Industry,Healthcare,>=,0.1,,,,
+IUES.L,Energies,6,False,Classes,Industry,Metals,>=,0.2,,,,
+XLV,Healthcare,7,False,Asset,Class 1,SPY,>=,0.2,,,,
+AAAU,Metals,8,,,,,,,,,,
