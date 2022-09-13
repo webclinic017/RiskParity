@@ -21,7 +21,7 @@ End = '2019-12-30'
 
 # Downloading parameters
 def excel_download():
-    holdings_url = "https://github.com/ra6it/RiskParity/blob/a4b0da6762b1352450213409b42bfa4f49f27f7f/RiskParity_Holdings.xlsx?raw=true"
+    holdings_url = "https://github.com/ra6it/RiskParity/blob/b5fdbbee8a01f402fafa72aa0d155a7196a10958/RiskParity_Holdings.xlsx?raw=true"
     holdings_url = requests.get(holdings_url).content
     assets = pd.read_excel(holdings_url, usecols="A:B")
     assets = assets.reindex(columns=['Asset','Industry'])
