@@ -15,9 +15,7 @@ from openpyxl import load_workbook
 warnings.filterwarnings("ignore")
 pd.options.display.float_format = '{:.4%}'.format
 
-# Date range
-Start = '2016-01-01'
-End = '2019-12-30'
+
 
 # Downloading parameters
 def excel_download():
@@ -34,14 +32,12 @@ def excel_download():
     constraint_url = requests.get(constraint_url).content
     constraints = pd.read_excel(constraint_url,usecols="B:K")
     constraints=pd.DataFrame(constraints)
-    print(constraints,asset_classes)
     return asset_classes, constraints
         
 # Downloading data
 def data_download(asset_classes):
     print("Downloading data...")
     asset = asset_classes['Asset'].to_string(index=False)
-    print(asset)
     data = yf.download(asset, start = Start, end = End)
     data = data.loc[:,('Adj Close', slice(None))]
     Y = data.pct_change().dropna()
@@ -54,50 +50,58 @@ def method():
     return method_mu, method_cov
 
 def portfolio_object(assets,method_mu, method_cov):
-    port = rp.Portfolio(returns=data_download(assets))
-    port.assets_stats(method_mu=method_mu, method_cov=method_cov, d=0.94)
-    return port
+    Port = rp.Portfolio(returns=data_download(assets))
+    Port.assets_stats(method_mu=method_mu, method_cov=method_cov, d=0.94)
+    return Port
 
 def create_pie(w):
     ax = rp.plot_pie(w=w, title='Sharpe Mean Variance', others=0.05, nrow=25, cmap = "tab20",
                  height=6, width=10, ax=None)
 
-def efficient_frontier(model,rm,obj,hist,rf,l,points,port):
-    frontier = port.efficient_frontier(model=model, rm=rm, points=points, rf=rf, hist=hist)
-
 def constraints_weightings(constraints,asset_classes):
     asset_classes = pd.DataFrame(asset_classes)
-    print(asset_classes)
     constraints = pd.DataFrame(constraints)
     A, B = rp.assets_constraints(constraints, asset_classes)
     return A, B
 
-def ainequality(A,B, port):
-    port.ainequality = A
-    port.binequality = B
-    print("here")
-    w = port.optimization(model=model, rm=rm, obj=obj, rf=rf, l=l, hist=hist)
-    print(w.T)
+def ainequality(A,B,Port):
+    Port.ainequality = A
+    Port.binequality = B
+    w = Port.optimization(model=Model, rm=Rm, obj=Obj, rf=Rf, l=L, hist=Hist)
+    print("Expected returns for", Start, "-", End,":",Port.mu)
+    print("Holdings for", Start, "-", End,":", w.T)
+    frontier_create(Port,w)
 
-def runner(model,rm,obj,hist,rf,l,points):
+def frontier_create(Port,w):
+    frontier = Port.efficient_frontier(model=Model, rm=Rm, points=Points, rf=Rf, hist=Hist)
+    print(frontier.T.head())
+    label = 'Max Risk Adjusted Return Portfolio' # Title of point
+    mu = Port.mu # Expected returns
+    cov = Port.cov # Covariance matrix
+    returns = Port.returns # Returns of the assets
+    ax = rp.plot_frontier(w_frontier=frontier, mu=mu, cov=cov, returns=returns, rm=Rm,
+                      rf=Rf, alpha=0.05, cmap='viridis', w=w, label=label,
+                      marker='*', s=16, c='r', height=6, width=10, ax=None)
+def runner():
     asset_classes, constraints = excel_download()
     method_mu, method_cov = method()
-    port = portfolio_object(asset_classes,method_mu, method_cov)
-    w = port.optimization(model=model, rm=rm, obj=obj, rf=rf, l=l, hist=hist)
-    efficient_frontier(model,rm,obj,hist,rf,l,points, port)
+    Port = portfolio_object(asset_classes,method_mu, method_cov)
     A,B = constraints_weightings(constraints,asset_classes)
-    ainequality(A,B, port)
+    ainequality(A,B,Port)
    
 
 #########################################Parameters##########################################
-model='Classic' # Could be Classic (historical), BL (Black Litterman) or FM (Factor Model)
-rm = 'MV' # Risk measure used, this time will be variance
-obj = 'Sharpe' # Objective function, could be MinRisk, MaxRet, Utility or Sharpe
-hist = True # Use historical scenarios for risk measures that depend on scenarios
-rf = 0 # Risk free rate
-l = 1 # Risk aversion factor, only useful when obj is 'Utility'
-points = 50 # Number of points of the frontier
+Model='Classic' # Could be Classic (historical), BL (Black Litterman) or FM (Factor Model)
+Rm = 'UCI' # Risk measure used, this time will be variance
+Obj = 'Sharpe' # Objective function, could be MinRisk, MaxRet, Utility or Sharpe
+Hist = True # Use historical scenarios for risk measures that depend on scenarios
+Rf = 0 # Risk free rate
+L = 1 # Risk aversion factor, only useful when obj is 'Utility'
+Points = 50 # Number of points of the frontier
+Start = '2022-01-01'
+End = '2022-09-09'
 
-runner(model,rm,obj,hist,rf,l,points)
+
+runner()
 
 
