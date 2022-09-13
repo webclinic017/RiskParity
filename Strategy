@@ -16,30 +16,33 @@ warnings.filterwarnings("ignore")
 pd.options.display.float_format = '{:.4%}'.format
 
 # Date range
-start = '2016-01-01'
-end = '2019-12-30'
+Start = '2016-01-01'
+End = '2019-12-30'
 
 # Downloading parameters
 def excel_download():
-    constraint_url = "https://raw.githubusercontent.com/ra6it/RiskParity/main/RiskParity_Holdings.csv"
-    download = requests.get(constraint_url).content
-    assets = pd.read_csv(io.StringIO(download.decode('utf-8')),usecols = ['Asset','Industry'])
-    constraints = pd.read_csv(io.StringIO(download.decode('utf-8')), usecols = ['Disabled','Type','Set','Position','Sign','Weight','Type_Relative','Relative_Set','Relative','Factor'])
-    
-    constraints = constraints.fillna('')
-    constraints['index'] = constraints.index
-    asset_classes = {'Assets': assets['Asset'].values.tolist(), 
+    holdings_url = "https://github.com/ra6it/RiskParity/blob/a4b0da6762b1352450213409b42bfa4f49f27f7f/RiskParity_Holdings.xlsx?raw=true"
+    holdings_url = requests.get(holdings_url).content
+    assets = pd.read_excel(holdings_url, usecols="A:B")
+    assets = assets.reindex(columns=['Asset','Industry'])
+    asset_classes = {'Asset': assets['Asset'].values.tolist(), 
                      'Industry': assets['Industry'].values.tolist()}
-    assets = asset_classes['Assets']
-    asset_classes=pd.DataFrame.from_dict(asset_classes)
+    asset_classes = pd.DataFrame(asset_classes)
+    asset_classes = asset_classes.sort_values(by=['Asset'])
 
-    print(constraints.info(), constraints)
-
-    return assets, constraints,asset_classes
+    constraint_url = "https://github.com/ra6it/RiskParity/blob/a4b0da6762b1352450213409b42bfa4f49f27f7f/RiskParity_Constraints.xlsx?raw=true"
+    constraint_url = requests.get(constraint_url).content
+    constraints = pd.read_excel(constraint_url,usecols="B:K")
+    constraints=pd.DataFrame(constraints)
+    print(constraints,asset_classes)
+    return asset_classes, constraints
         
 # Downloading data
-def data_download(assets):
-    data = yf.download(assets, start = start, end = end)
+def data_download(asset_classes):
+    print("Downloading data...")
+    asset = asset_classes['Asset'].to_string(index=False)
+    print(asset)
+    data = yf.download(asset, start = Start, end = End)
     data = data.loc[:,('Adj Close', slice(None))]
     Y = data.pct_change().dropna()
     return Y
@@ -49,8 +52,6 @@ def method():
     method_mu='hist' # Method to estimate expected returns based on historical data.
     method_cov='hist' # Method to estimate covariance matrix based on historical data.
     return method_mu, method_cov
-
-# Estimate optimal portfolio:
 
 def portfolio_object(assets,method_mu, method_cov):
     port = rp.Portfolio(returns=data_download(assets))
@@ -63,19 +64,29 @@ def create_pie(w):
 
 def efficient_frontier(model,rm,obj,hist,rf,l,points,port):
     frontier = port.efficient_frontier(model=model, rm=rm, points=points, rf=rf, hist=hist)
-    print(frontier.T.head())
 
-def constraints_weightings(constraints,asset_classes,assets):
-    A, B = rp.assets_constraints(constraints, assets)
+def constraints_weightings(constraints,asset_classes):
+    asset_classes = pd.DataFrame(asset_classes)
+    print(asset_classes)
+    constraints = pd.DataFrame(constraints)
+    A, B = rp.assets_constraints(constraints, asset_classes)
+    return A, B
 
+def ainequality(A,B, port):
+    port.ainequality = A
+    port.binequality = B
+    print("here")
+    w = port.optimization(model=model, rm=rm, obj=obj, rf=rf, l=l, hist=hist)
+    print(w.T)
 
-def runner(model,rm,obj,hist,rf,l,points,):
-    assets, constraints,asset_classes = excel_download()
+def runner(model,rm,obj,hist,rf,l,points):
+    asset_classes, constraints = excel_download()
     method_mu, method_cov = method()
-    port = portfolio_object(assets,method_mu, method_cov)
+    port = portfolio_object(asset_classes,method_mu, method_cov)
     w = port.optimization(model=model, rm=rm, obj=obj, rf=rf, l=l, hist=hist)
     efficient_frontier(model,rm,obj,hist,rf,l,points, port)
-    constraints_weightings(asset_classes,constraints,assets)
+    A,B = constraints_weightings(constraints,asset_classes)
+    ainequality(A,B, port)
    
 
 #########################################Parameters##########################################
