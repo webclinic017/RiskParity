@@ -30,7 +30,7 @@ def excel_download():
     asset_classes = pd.DataFrame(asset_classes)
     asset_classes = asset_classes.sort_values(by=['Asset'])
 
-    constraint_url = "https://github.com/ra6it/RiskParity/blob/b40dd8a1ea464023fc5c8cca04a7d828dd944406/RiskParity_Constraints.xlsx?raw=true"
+    constraint_url = "https://github.com/ra6it/RiskParity/blob/705dbda2c648009908982c6be890662b56c9b519/RiskParity_Constraints.xlsx?raw=true"
     constraint_url = requests.get(constraint_url).content
     constraints = pd.read_excel(constraint_url,usecols="B:K")
     constraints=pd.DataFrame(constraints)
