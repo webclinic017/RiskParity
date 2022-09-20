@@ -40,12 +40,13 @@ def excel_download():
                      'Industry': assets['Industry'].values.tolist()}
     asset_classes = pd.DataFrame(asset_classes)
     asset_classes = asset_classes.sort_values(by=['Asset'])
-
+    asset = assets['Asset'].values.tolist()
     constraint_url = "https://github.com/ra6it/RiskParity/blob/ra6it-constraints/RiskParity_Constraints.xlsx?raw=true"
     constraint_url = requests.get(constraint_url).content
     constraints = pd.read_excel(constraint_url,usecols="B:K")
     constraints=pd.DataFrame(constraints)
-    return asset_classes, constraints
+    prices = prices = yf.download(asset, start=Start, end=End)
+    return asset_classes, constraints, prices
         
 # Downloading data
 def data_download(asset_classes):
@@ -129,17 +130,14 @@ def backtest(datas, strategy, start, end, plot=False, **kwargs):
             results[0].analyzers.sharperatio.get_analysis()['sharperatio'])
 
 def runner():
-    asset_classes, constraints = excel_download()
+    asset_classes, constraints, prices = excel_download()
     method_mu, method_cov = method()
     Port = portfolio_object(asset_classes,method_mu, method_cov)
     A,B = constraints_weightings(constraints,asset_classes)
     ainequality(A,B,Port)
-    asset_benchmark(asset_classes)
+    asset_benchmark(asset_classes, prices)
 
-
-
-
-def asset_benchmark(asset_classes):
+def asset_benchmark(asset_classes,prices):
     assets_prices = []
     for i in asset_classes:
         if i != 'SPY':
@@ -157,16 +155,6 @@ def asset_benchmark(asset_classes):
 # Building the Buy and Hold strategy
 ############################################################
 
-class BuyAndHold(bt.Strategy):
-
-    def __init__(self):
-        self.counter = 0
-
-    def next(self):
-        if self.counter >= 1004:
-            if self.getposition(self.data).size == 0:
-                self.order_target_percent(self.data, target=0.99)
-        self.counter += 1 
 runner()
 ############################################################
 # Run the backtest for the selected period
