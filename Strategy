@@ -45,6 +45,7 @@ def excel_download():
     constraint_url = requests.get(constraint_url).content
     constraints = pd.read_excel(constraint_url,usecols="B:K")
     constraints=pd.DataFrame(constraints)
+    print(constraints)
     prices = prices = yf.download(asset, start=Start, end=End)
     return asset_classes, constraints, prices
         
