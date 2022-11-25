@@ -135,20 +135,25 @@ def runner():
     Port = portfolio_object(asset_classes,method_mu, method_cov)
     A,B = constraints_weightings(constraints,asset_classes)
     ainequality(A,B,Port)
-    asset_benchmark(asset_classes, prices)
+    returns(prices, asset_classes)
 
-def asset_benchmark(asset_classes,prices):
-    assets_prices = []
-    for i in asset_classes:
-        if i != 'SPY':
-            prices_ = prices.drop(columns='Adj Close').loc[:, (slice(None), i)].dropna()
-            prices_.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
-            assets_prices.append(bt.feeds.PandasData(dataname=prices_, plot=False))
+def returns(prices, asset_classes):
+    pd.options.display.float_format = '{:.4%}'.format
+    data = prices.loc[:, ('Adj Close', slice(None))]
+    data.columns = asset_classes
+    returner = data.pct_change().dropna()
+    print(returner.head())
+    rebalance_dates(returner)
 
-    # Creating Benchmark bt.feeds        
-    prices_ = prices.drop(columns='Adj Close').loc[:, (slice(None), 'SPY')].dropna()
-    prices_.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
-    benchmark = bt.feeds.PandasData(dataname=prices_, plot=False)
+def rebalance_dates(returner):
+    index = returner.groupby([returner.index.year, returner.index.month]).tail(1).index
+    index_2 = returner.index
+
+    # Quarterly Dates
+    index = [x for x in index if float(x.month) % 3.0 == 0 ] 
+
+    # Dates where the strategy will be backtested
+    index_ = [index_2.get_loc(x) for x in index if index_2.get_loc(x) > 1000]
 
 
 ############################################################
