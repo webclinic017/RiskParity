@@ -35,7 +35,6 @@ def excel_download():
     holdings_url = "https://github.com/ra6it/RiskParity/blob/main/RiskParity_Holdings.xlsx?raw=true"
     holdings_url = requests.get(holdings_url).content
     assets = pd.read_excel(holdings_url,usecols="A:B", engine='openpyxl')
-    print(assets)
     assets = assets.reindex(columns=['Asset', 'Industry'])
     asset_classes = {'Asset': assets['Asset'].values.tolist(), 
                      'Industry': assets['Industry'].values.tolist()}
@@ -46,7 +45,7 @@ def excel_download():
     constraint_url = requests.get(constraint_url).content
     constraints = pd.read_excel(holdings_url,usecols="E:N", engine='openpyxl')
     constraints=pd.DataFrame(constraints)
-    print("Constraints",constraints)
+    print(constraints)
     prices = prices = yf.download(asset, start=Start, end=End)
     return asset_classes, constraints, prices
         
