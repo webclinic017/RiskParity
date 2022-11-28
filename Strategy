@@ -77,14 +77,14 @@ def constraints_weightings(constraints,asset_classes):
     asset_classes = pd.DataFrame(asset_classes)
     constraints = pd.DataFrame(constraints)
     data = constraints.fillna("")
+    print(constraints)
     data = data.values.tolist()
     for i in range(0, len(constraints)):
-        if data[i][1] == "Classes":
-            print("Datai1",data[i][1])
-            print("datai5", data[i][5])
-            print(data[i][3])
-            print(asset_classes[data[i][2]].values)
-            A1 = np.where(asset_classes[data[i][2]].values == data[i][3], 1, 0)
+        print("Datai1",data[i][1])
+        print("datai5", data[i][5])
+        print("datai3",data[i][3])
+        #print(asset_classes[data[i][2]].values)
+        #A1 = np.where(asset_classes[data[i][2]].values == data[i][3], 1, 0)
     A, B = rp.assets_constraints(constraints, asset_classes)
     return A, B
 
