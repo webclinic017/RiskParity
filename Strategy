@@ -32,20 +32,21 @@ pd.options.display.float_format = '{:.4%}'.format
 
 # Downloading parameters
 def excel_download():
-    holdings_url = "https://github.com/ra6it/RiskParity/blob/f5c11578adde2306b546c492d3686b649123e2d4/RiskParity_Holdings.xlsx?raw=true"
+    holdings_url = "https://github.com/ra6it/RiskParity/blob/main/RiskParity_Holdings.xlsx?raw=true"
     holdings_url = requests.get(holdings_url).content
-    assets = pd.read_excel(BytesIO(holdings_url), engine='openpyxl')
+    assets = pd.read_excel(holdings_url,usecols="A:B", engine='openpyxl')
+    print(assets)
     assets = assets.reindex(columns=['Asset', 'Industry'])
     asset_classes = {'Asset': assets['Asset'].values.tolist(), 
                      'Industry': assets['Industry'].values.tolist()}
     asset_classes = pd.DataFrame(asset_classes)
     asset_classes = asset_classes.sort_values(by=['Asset'])
     asset = assets['Asset'].values.tolist()
-    constraint_url = "https://github.com/ra6it/RiskParity/blob/f5c11578adde2306b546c492d3686b649123e2d4/RiskParity_Constraints.xlsx?raw=true"
+    constraint_url = "https://github.com/ra6it/RiskParity/blob/main/RiskParity_Holdings.xlsx?raw=true"
     constraint_url = requests.get(constraint_url).content
-    constraints = pd.read_excel(constraint_url,usecols="B:K", engine='openpyxl')
+    constraints = pd.read_excel(holdings_url,usecols="E:N", engine='openpyxl')
     constraints=pd.DataFrame(constraints)
-    print(constraints)
+    print("Constraints",constraints)
     prices = prices = yf.download(asset, start=Start, end=End)
     return asset_classes, constraints, prices
         
@@ -77,14 +78,7 @@ def constraints_weightings(constraints,asset_classes):
     asset_classes = pd.DataFrame(asset_classes)
     constraints = pd.DataFrame(constraints)
     data = constraints.fillna("")
-    print(constraints)
     data = data.values.tolist()
-    for i in range(0, len(constraints)):
-        print("Datai1",data[i][1])
-        print("datai5", data[i][5])
-        print("datai3",data[i][3])
-        #print(asset_classes[data[i][2]].values)
-        #A1 = np.where(asset_classes[data[i][2]].values == data[i][3], 1, 0)
     A, B = rp.assets_constraints(constraints, asset_classes)
     return A, B
 
