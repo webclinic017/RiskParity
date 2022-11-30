@@ -48,7 +48,7 @@ def excel_download():
     constraints=pd.DataFrame(constraints)
     print(constraints)
     prices = prices = yf.download(asset, start=Start, end=End)
-    return asset_classes, constraints, prices
+    return asset_classes, constraints, prices, asset
         
 # Downloading data
 def data_download(asset_classes):
@@ -102,7 +102,7 @@ def frontier_create(Port,w):
                       marker='*', s=16, c='r', height=6, width=10, ax=None)
 
 def runner():
-    asset_classes, constraints, prices = excel_download()
+    asset_classes, constraints, prices, asset = excel_download()
     method_mu, method_cov = method()
     Port = portfolio_object(asset_classes,method_mu, method_cov)
     A,B = constraints_weightings(constraints,asset_classes)
@@ -129,7 +129,7 @@ def rebalance_dates(returner):
 
 runner()
 
-
+asset_classes, constraints, prices, asset = excel_download()
 
 
 

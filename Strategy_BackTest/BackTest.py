@@ -4,7 +4,9 @@ import yfinance as yf
 import backtrader as bt
 import numpy as np
 import warnings
-import Strategy
+from Strategy import *
+
+print(asset)
 
 ############################################################
 # Defining the backtest function 
