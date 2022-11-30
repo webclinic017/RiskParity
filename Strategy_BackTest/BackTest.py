@@ -6,7 +6,7 @@ import numpy as np
 import warnings
 from Strategy import *
 
-print(asset)
+assets = asset
 
 ############################################################
 # Defining the backtest function 
@@ -57,7 +57,7 @@ prices_ = prices.drop(columns='Adj Close').loc[:, (slice(None), 'SPY')].dropna()
 prices_.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
 benchmark = bt.feeds.PandasData(dataname=prices_, plot=False)
 
-display(prices_.head())
+print(prices_.head())
 
 ############################################################
 # Building the Buy and Hold strategy
