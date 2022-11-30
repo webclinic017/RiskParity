@@ -21,7 +21,7 @@ Hist = True # Use historical scenarios for risk measures that depend on scenario
 Rf = 0 # Risk free rate
 L = 1 # Risk aversion factor, only useful when obj is 'Utility'
 Points = 50 # Number of points of the frontier
-Start = '2022-09-01'
+Start = '2022-10-01'
 End = '2022-11-01'
 
 
