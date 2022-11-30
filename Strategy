@@ -21,8 +21,8 @@ Hist = True # Use historical scenarios for risk measures that depend on scenario
 Rf = 0.04 # Risk free rate
 L = 1 # Risk aversion factor, only useful when obj is 'Utility'
 Points = 50 # Number of points of the frontier
-Start = '2022-10-01'
-End = '2022-11-01'
+Start = '2019-10-01'
+End = '2019-11-01'
 
 
 warnings.filterwarnings("ignore")
@@ -101,38 +101,6 @@ def frontier_create(Port,w):
                       rf=Rf, alpha=0.05, cmap='viridis', w=w, label=label,
                       marker='*', s=16, c='r', height=6, width=10, ax=None)
 
-############################################################
-# Defining the backtest function 
-############################################################
-
-def backtest(datas, strategy, start, end, plot=False, **kwargs):
-    cerebro = bt.Cerebro()
-
-    # Here we add transaction costs and other broker costs
-    cerebro.broker.setcash(1000000.0)
-    cerebro.broker.setcommission(commission=0.005) # Commission 0.5%
-    cerebro.broker.set_slippage_perc(0.005, # Slippage 0.5%
-                                     slip_open=True,
-                                     slip_limit=True,
-                                     slip_match=True,
-                                     slip_out=False)
-    for data in datas:
-        cerebro.adddata(data)
-
-    # Here we add the indicators that we are going to store
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, riskfreerate=0.0)
-    cerebro.addanalyzer(bt.analyzers.Returns)
-    cerebro.addanalyzer(bt.analyzers.DrawDown)
-    cerebro.addstrategy(strategy, **kwargs)
-    cerebro.addobserver(bt.observers.Value)
-    cerebro.addobserver(bt.observers.DrawDown)
-    results = cerebro.run(stdstats=False)
-    if plot:
-        cerebro.plot(iplot=False, start=start, end=end)
-    return (results[0].analyzers.drawdown.get_analysis()['max']['drawdown'],
-            results[0].analyzers.returns.get_analysis()['rnorm100'],
-            results[0].analyzers.sharperatio.get_analysis()['sharperatio'])
-
 def runner():
     asset_classes, constraints, prices = excel_download()
     method_mu, method_cov = method()
@@ -159,16 +127,7 @@ def rebalance_dates(returner):
     # Dates where the strategy will be backtested
     index_ = [index_2.get_loc(x) for x in index if index_2.get_loc(x) > 1000]
 
-
-############################################################
-# Building the Buy and Hold strategy
-############################################################
-
 runner()
-############################################################
-# Run the backtest for the selected period
-############################################################
-
 
 
 
