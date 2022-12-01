@@ -3,12 +3,13 @@ import datetime
 import yfinance as yf
 import backtrader as bt
 import numpy as np
-import warnings
+from matplotlib.dates import warnings
 from matplotlib.dates import *
 from Strategy import *
 
 assets = asset
-
+start = Start
+end = End
 ############################################################
 # Defining the backtest function 
 ############################################################
