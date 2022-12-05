@@ -8,8 +8,11 @@ from matplotlib.dates import *
 from Strategy import *
 
 assets = asset
-start = Start
-end = End
+start = '2019-09-30'
+end = '2019-11-01'
+
+
+
 ############################################################
 # Defining the backtest function 
 ############################################################
@@ -27,7 +30,6 @@ def backtest(datas, strategy, start, end, plot=False, **kwargs):
                                      slip_out=False)
     for data in datas:
         cerebro.adddata(data)
-
     # Here we add the indicators that we are going to store
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns)
@@ -59,8 +61,6 @@ prices_ = prices.drop(columns='Adj Close').loc[:, (slice(None), 'SPY')].dropna()
 prices_.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
 benchmark = bt.feeds.PandasData(dataname=prices_, plot=False)
 
-print(prices_.head())
-
 ############################################################
 # Building the Buy and Hold strategy
 ############################################################
@@ -87,9 +87,8 @@ plt.plot() # We need to do this to avoid errors in inline plot
 start = 1004
 end = prices.shape[0] - 1
 
-dd, cagr, sharpe = backtest([benchmark],
+dd, cagr, sharpe = backtest(assets_prices,
                             BuyAndHold,
                             start=start,
                             end=end,
                             plot=True)
-
