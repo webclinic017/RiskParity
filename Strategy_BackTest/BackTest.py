@@ -28,6 +28,7 @@ def backtest(datas, strategy, start, end, plot=False, **kwargs):
                                      slip_limit=True,
                                      slip_match=True,
                                      slip_out=False)
+    print(data)
     for data in datas:
         cerebro.adddata(data)
     # Here we add the indicators that we are going to store
@@ -38,6 +39,7 @@ def backtest(datas, strategy, start, end, plot=False, **kwargs):
     cerebro.addobserver(bt.observers.Value)
     cerebro.addobserver(bt.observers.DrawDown)
     results = cerebro.run(stdstats=False)
+    print(cerebro)
     if plot:
         cerebro.plot(iplot=False, start=start, end=end)
     return (results[0].analyzers.drawdown.get_analysis()['max']['drawdown'],
@@ -50,11 +52,13 @@ def backtest(datas, strategy, start, end, plot=False, **kwargs):
 
 # Creating Assets bt.feeds
 assets_prices = []
+
 for i in assets:
     if i != 'SPY':
         prices_ = prices.drop(columns='Adj Close').loc[:, (slice(None), i)].dropna()
         prices_.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
         assets_prices.append(bt.feeds.PandasData(dataname=prices_, plot=False))
+        print(assets_prices)
 
 # Creating Benchmark bt.feeds        
 prices_ = prices.drop(columns='Adj Close').loc[:, (slice(None), 'SPY')].dropna()
@@ -86,7 +90,7 @@ plt.plot() # We need to do this to avoid errors in inline plot
 
 start = 1004
 end = prices.shape[0] - 1
-
+print(assets_prices)
 dd, cagr, sharpe = backtest(assets_prices,
                             BuyAndHold,
                             start=start,
