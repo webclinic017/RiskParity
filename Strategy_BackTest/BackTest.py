@@ -3,48 +3,21 @@ import datetime
 import yfinance as yf
 import backtrader as bt
 import numpy as np
-from matplotlib.dates import warnings
-from matplotlib.dates import *
+import warnings
 from Strategy import *
+warnings.filterwarnings("ignore")
+
+# Date range
+Start = '2016-01-01'
+End = '2020-12-31'
+start = Start
+end = End
+# Tickers of assets
 
 assets = asset
-start = '2019-09-30'
-end = '2019-11-01'
-
-
-
-############################################################
-# Defining the backtest function 
-############################################################
-
-def backtest(datas, strategy, start, end, plot=False, **kwargs):
-    cerebro = bt.Cerebro()
-
-    # Here we add transaction costs and other broker costs
-    cerebro.broker.setcash(1000000.0)
-    cerebro.broker.setcommission(commission=0.005) # Commission 0.5%
-    cerebro.broker.set_slippage_perc(0.005, # Slippage 0.5%
-                                     slip_open=True,
-                                     slip_limit=True,
-                                     slip_match=True,
-                                     slip_out=False)
-    print(data)
-    for data in datas:
-        cerebro.adddata(data)
-    # Here we add the indicators that we are going to store
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, riskfreerate=0.0)
-    cerebro.addanalyzer(bt.analyzers.Returns)
-    cerebro.addanalyzer(bt.analyzers.DrawDown)
-    cerebro.addstrategy(strategy, **kwargs)
-    cerebro.addobserver(bt.observers.Value)
-    cerebro.addobserver(bt.observers.DrawDown)
-    results = cerebro.run(stdstats=False)
-    print(cerebro)
-    if plot:
-        cerebro.plot(iplot=False, start=start, end=end)
-    return (results[0].analyzers.drawdown.get_analysis()['max']['drawdown'],
-            results[0].analyzers.returns.get_analysis()['rnorm100'],
-            results[0].analyzers.sharperatio.get_analysis()['sharperatio'])
+# Downloading data
+prices = yf.download(assets, start=start, end=end)
+prices = prices.dropna()
 
 ############################################################
 # Create objects that contain the prices of assets
@@ -52,13 +25,11 @@ def backtest(datas, strategy, start, end, plot=False, **kwargs):
 
 # Creating Assets bt.feeds
 assets_prices = []
-
 for i in assets:
     if i != 'SPY':
         prices_ = prices.drop(columns='Adj Close').loc[:, (slice(None), i)].dropna()
         prices_.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
         assets_prices.append(bt.feeds.PandasData(dataname=prices_, plot=False))
-        print(assets_prices)
 
 # Creating Benchmark bt.feeds        
 prices_ = prices.drop(columns='Adj Close').loc[:, (slice(None), 'SPY')].dropna()
@@ -81,18 +52,152 @@ class BuyAndHold(bt.Strategy):
         self.counter += 1 
 
 ############################################################
-# Run the backtest for the selected period
+# Calculate assets returns
 ############################################################
 
-import matplotlib.pyplot as plt
-plt.rcParams["figure.figsize"] = (10, 6) # (w, h)
-plt.plot() # We need to do this to avoid errors in inline plot
+pd.options.display.float_format = '{:.4%}'.format
 
-start = 1004
-end = prices.shape[0] - 1
-print(assets_prices)
+data = prices.loc[:, ('Adj Close', slice(None))]
+data.columns = assets
+data = data.drop(columns=['SPY']).dropna()
+returns = data.pct_change().dropna()
+
+############################################################
+# Selecting Dates for Rebalancing
+############################################################
+
+# Selecting last day of month of available data
+index = returns.groupby([returns.index.year, returns.index.month]).tail(1).index
+
+index_2 = returns.index
+
+# Quarterly Dates
+index = [x for x in index if float(x.month) % 3.0 == 0 ] 
+
+
+# Dates where the strategy will be backtested
+index_ = [index_2.get_loc(x) for x in index if index_2.get_loc(x) > 100]
+
+############################################################
+# Building Constraints
+############################################################
+
+asset_classes = pd.DataFrame(asset_classes)
+asset_classes = asset_classes.sort_values(by=['Asset'])
+
+
+constraints = pd.DataFrame(constraints)
+
+############################################################
+# Building constraint matrixes for Riskfolio Lib
+############################################################
+
+import riskfolio as rp
+
+A,B = constraints_weightings(constraints,asset_classes)
+
+############################################################
+# Building a loop that estimate optimal portfolios on
+# rebalancing dates
+############################################################
+
+models = {}
+
+# rms = ['MV', 'MAD', 'MSV', 'FLPM', 'SLPM',
+#        'CVaR', 'WR', 'MDD', 'ADD', 'CDaR']
+
+rms = ['MV', 'CVaR', 'WR', 'CDaR']
+returns = data_download(asset_classes)
+
+for j in rms:
+    returns = returns
+    weights = pd.DataFrame([])
+    for i in index_:
+        print("for i in index_")
+        print(index_)
+        print(i-60,i)
+        returns = returns.iloc[i-600:i,:] # taking last 4 years (250 trading days per year)
+        # Building the portfolio object
+        Port, w = runner(asset_classes, constraints, prices, asset, returns)
+
+        # Calculating optimum portfolio
+        print("002")
+        # Select method and estimate input parameters:
+        method_mu='hist' # Method to estimate expected returns based on historical data.
+        method_cov='hist' # Method to estimate covariance matrix based on historical data.
+
+
+        if w is None:
+            w = weights.tail(1).T
+        weights = pd.concat([weights, w.T], axis = 0)
+    models[j] = weights.copy()
+    models[j].index = index_
+
+############################################################
+# Building the Asset Allocation Class
+############################################################
+
+asset_classes, constraints, prices, asset = excel_download()
+
+class AssetAllocation(bt.Strategy):
+
+    def __init__(self):
+
+        j = 0
+        for i in assets:
+            setattr(self, i, self.datas[j])
+            j += 1
+        
+        self.counter = 0
+        
+    def next(self):
+        if self.counter in weights.index.tolist():
+            for i in assets:
+                w = weights.loc[self.counter, i]
+                self.order_target_percent(getattr(self, i), target=w)
+        self.counter += 1
+
+
+############################################################
+# Backtesting Mean Variance Strategy
+############################################################
+
+assets = returns.columns.tolist()
+weights = models['MV']
+
+assets = returns.columns.tolist()
+weights = models['MV']
+
+def backtest(datas, strategy, start, end, plot=False, **kwargs):
+    cerebro = bt.Cerebro()
+
+    # Here we add transaction costs and other broker costs
+    cerebro.broker.setcash(1000000.0)
+    cerebro.broker.setcommission(commission=0.005) # Commission 0.5%
+    cerebro.broker.set_slippage_perc(0.005, # Slippage 0.5%
+                                     slip_open=True,
+                                     slip_limit=True,
+                                     slip_match=True,
+                                     slip_out=False)
+    for data in datas:
+        cerebro.adddata(data)
+
+    # Here we add the indicators that we are going to store
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, riskfreerate=0.0)
+    cerebro.addanalyzer(bt.analyzers.Returns)
+    cerebro.addanalyzer(bt.analyzers.DrawDown)
+    cerebro.addstrategy(strategy, **kwargs)
+    cerebro.addobserver(bt.observers.Value)
+    cerebro.addobserver(bt.observers.DrawDown)
+    results = cerebro.run(stdstats=False)
+    if plot:
+        cerebro.plot(iplot=False, start=start, end=end)
+    return (results[0].analyzers.drawdown.get_analysis()['max']['drawdown'],
+            results[0].analyzers.returns.get_analysis()['rnorm100'],
+            results[0].analyzers.sharperatio.get_analysis()['sharperatio'])
+
 dd, cagr, sharpe = backtest(assets_prices,
-                            BuyAndHold,
+                            AssetAllocation,
                             start=start,
                             end=end,
                             plot=True)
