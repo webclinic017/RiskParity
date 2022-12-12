@@ -8,11 +8,13 @@ from Strategy import *
 warnings.filterwarnings("ignore")
 
 # Date range
-Start = '2016-01-01'
+Start = '2020-01-01'
 End = '2020-12-31'
 start = Start
 end = End
 # Tickers of assets
+
+asset_classes, constraints, prices, asset = excel_download()
 
 assets = asset
 # Downloading data
@@ -71,12 +73,11 @@ index = returns.groupby([returns.index.year, returns.index.month]).tail(1).index
 
 index_2 = returns.index
 
-# Quarterly Dates
-index = [x for x in index if float(x.month) % 3.0 == 0 ] 
-
+# Monthly Dates
+index = [x for x in index if float(x.month) % 12.0 == 0 ] 
 
 # Dates where the strategy will be backtested
-index_ = [index_2.get_loc(x) for x in index if index_2.get_loc(x) > 100]
+index_ = [index_2.get_loc(x) for x in index if index_2.get_loc(x) > 0]
 
 ############################################################
 # Building Constraints
@@ -106,38 +107,44 @@ models = {}
 # rms = ['MV', 'MAD', 'MSV', 'FLPM', 'SLPM',
 #        'CVaR', 'WR', 'MDD', 'ADD', 'CDaR']
 
-rms = ['MV', 'CVaR', 'WR', 'CDaR']
-returns = data_download(asset_classes)
+rms = ['MV']
 
+print(index_)
+
+increment = 21
+
+
+
+print(returns)
+c = 0
 for j in rms:
     returns = returns
     weights = pd.DataFrame([])
     for i in index_:
-        print("for i in index_")
-        print(index_)
-        print(i-60,i)
-        returns = returns.iloc[i-600:i,:] # taking last 4 years (250 trading days per year)
-        # Building the portfolio object
-        Port, w = runner(asset_classes, constraints, prices, asset, returns)
+        b = increment + i
+        while c < 265:
+            print(b)
+            print("PRINTING")
+            Y = returns.iloc[c-b:c,:]
+            print(Y)
+            if c >= increment:
+                print(constraints)
+                Port, w = runner(asset_classes, constraints, prices, asset,Y)
+                print(w)
 
-        # Calculating optimum portfolio
-        print("002")
-        # Select method and estimate input parameters:
-        method_mu='hist' # Method to estimate expected returns based on historical data.
-        method_cov='hist' # Method to estimate covariance matrix based on historical data.
-
-
-        if w is None:
-            w = weights.tail(1).T
+                if w is None:
+                    w = weights.tail(1).T
+            c = c + increment
         weights = pd.concat([weights, w.T], axis = 0)
-    models[j] = weights.copy()
-    models[j].index = index_
+        models[j] = weights.copy()
+
+            
 
 ############################################################
 # Building the Asset Allocation Class
 ############################################################
 
-asset_classes, constraints, prices, asset = excel_download()
+
 
 class AssetAllocation(bt.Strategy):
 

@@ -12,6 +12,8 @@ import io
 from io import StringIO
 from io import BytesIO
 from openpyxl import load_workbook
+from BackTest import *
+
 
 #########################################Parameters##########################################
 Model='Classic' # Could be Classic (historical), BL (Black Litterman) or FM (Factor Model)
@@ -21,9 +23,6 @@ Hist = True # Use historical scenarios for risk measures that depend on scenario
 Rf = 0.04 # Risk free rate
 L = 1 # Risk aversion factor, only useful when obj is 'Utility'
 Points = 50 # Number of points of the frontier
-Start = '2016-01-01'
-End = '2020-12-31'
-
 
 warnings.filterwarnings("ignore")
 pd.options.display.float_format = '{:.4%}'.format
@@ -46,7 +45,7 @@ def excel_download():
     constraint_url = requests.get(constraint_url).content
     constraints = pd.read_excel(holdings_url,'Constraints',usecols="B:K", engine='openpyxl')
     constraints=pd.DataFrame(constraints)
-    prices = prices = yf.download(asset, start=Start, end=End)
+    prices = yf.download(asset, start=Start, end=End)
     return asset_classes, constraints, prices, asset
         
 # Downloading data
@@ -81,6 +80,7 @@ def constraints_weightings(constraints,asset_classes):
     return A, B
 
 def ainequality(A,B,Port):
+    print(A)
     Port.ainequality = A
     Port.binequality = B
     w = Port.optimization(model=Model, rm=Rm, obj=Obj, rf=Rf, l=L, hist=Hist)
@@ -105,7 +105,7 @@ def runner(asset_classes, constraints, prices, asset,returns):
     #returns(prices, asset_classes)
     return(Port, w)
 
-asset_classes, constraints, prices, asset = excel_download()
+#asset_classes, constraints, prices, asset = excel_download()
 
 
 
