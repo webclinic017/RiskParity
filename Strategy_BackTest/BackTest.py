@@ -14,7 +14,77 @@ start = Start
 end = End
 # Tickers of assets
 
-asset_classes, constraints, prices, asset = excel_download()
+Model='Classic' # Could be Classic (historical), BL (Black Litterman) or FM (Factor Model)
+Rm = 'MV' # Risk measure used, this time will be variance
+Obj = 'MaxRet' # Objective function, could be MinRisk, MaxRet, Utility or Sharpe
+Hist = True # Use historical scenarios for risk measures that depend on scenarios
+Rf = 0.04 # Risk free rate
+L = 1 # Risk aversion factor, only useful when obj is 'Utility'
+Points = 50 # Number of points of the frontier
+
+def constraints_weightings(constraints,asset_classes):
+    asset_classes = pd.DataFrame(asset_classes)
+    constraints = pd.DataFrame(constraints)
+    data = constraints.fillna("")
+    data = data.values.tolist()
+    A, B = rp.assets_constraints(constraints, asset_classes)
+    return A, B
+
+def excel_download():
+    holdings_url = "https://github.com/ra6it/RiskParity/blob/main/RiskParity_Holdings_Constraints.xlsx?raw=true"
+    holdings_url = requests.get(holdings_url).content
+    assets = pd.read_excel(holdings_url,'Holdings',usecols="A:B", engine='openpyxl')
+    assets = assets.reindex(columns=['Asset', 'Industry'])
+    asset_classes = {'Asset': assets['Asset'].values.tolist(), 
+                     'Industry': assets['Industry'].values.tolist()}
+    asset_classes = pd.DataFrame(asset_classes)
+    asset_classes = asset_classes.sort_values(by=['Asset'])
+    asset = assets['Asset'].values.tolist()
+    asset = [x for x in asset if str(x) != 'nan']
+    constraint_url = "https://github.com/ra6it/RiskParity/blob/main/RiskParity_Holdings_Constraints.xlsx?raw=true"
+    constraint_url = requests.get(constraint_url).content
+    constraints = pd.read_excel(holdings_url,'Constraints',usecols="B:K", engine='openpyxl')
+    constraints=pd.DataFrame(constraints)
+    return asset_classes, constraints, asset
+
+def runner(asset_classes, constraints, prices, asset,returns):
+    method_mu, method_cov = method()
+    Port = portfolio_object(asset_classes,method_mu, method_cov, returns)
+    A,B = constraints_weightings(constraints,asset_classes)
+    w = ainequality(A,B,Port)
+    #returns(prices, asset_classes)
+    return(Port, w)
+
+def method():
+    method_mu='hist' # Method to estimate expected returns based on historical data.
+    method_cov='hist' # Method to estimate covariance matrix based on historical data.
+    return method_mu, method_cov
+
+def portfolio_object(assets,method_mu, method_cov,returns):
+    Port = rp.Portfolio(returns)
+    Port.assets_stats(method_mu=method_mu, method_cov=method_cov, d=0.94)
+    return Port
+
+def ainequality(A,B,Port):
+    Port.ainequality = A
+    Port.binequality = B
+    w = Port.optimization(model=Model, rm=Rm, obj=Obj, rf=Rf, l=L, hist=Hist)
+    frontier_create(Port,w)
+    return(w)
+
+def frontier_create(Port,w):
+    frontier = Port.efficient_frontier(model=Model, rm=Rm, points=Points, rf=Rf, hist=Hist)
+    label = 'Max Risk Adjusted Return Portfolio' # Title of point
+    mu = Port.mu # Expected returns
+    cov = Port.cov # Covariance matrix
+    returns = Port.returns # Returns of the assets
+    ax = rp.plot_frontier(w_frontier=frontier, mu=mu, cov=cov, returns=returns, rm=Rm,
+                      rf=Rf, alpha=0.05, cmap='viridis', w=w, label=label,
+                      marker='*', s=16, c='r', height=6, width=10, ax=None)
+
+asset_classes, constraints, asset = excel_download()
+
+
 
 assets = asset
 # Downloading data
@@ -61,7 +131,7 @@ pd.options.display.float_format = '{:.4%}'.format
 
 data = prices.loc[:, ('Adj Close', slice(None))]
 data.columns = assets
-data = data.drop(columns=['SPY']).dropna()
+#data = data.drop(columns=['SPY']).dropna()
 returns = data.pct_change().dropna()
 
 ############################################################
@@ -123,35 +193,38 @@ for j in rms:
     for i in index_:
         b = increment + i
         while c < 265:
-            print(b)
-            print("PRINTING")
             Y = returns.iloc[c-b:c,:]
-            print(Y)
             if c >= increment:
-                print(constraints)
                 Port, w = runner(asset_classes, constraints, prices, asset,Y)
-                print(w)
 
                 if w is None:
                     w = weights.tail(1).T
+                weights = pd.concat([weights, w.T], axis = 0)
             c = c + increment
-        weights = pd.concat([weights, w.T], axis = 0)
+        print(weights)
         models[j] = weights.copy()
-
-            
+        #models[j].index = index_
 
 ############################################################
-# Building the Asset Allocation Class
+# Backtesting Mean Variance Strategy
 ############################################################
 
+assets = returns.columns.tolist()
+weights = models['MV']
 
+start = b
+end = prices.shape[0] - 1
+print(start,":",end)
 
 class AssetAllocation(bt.Strategy):
 
     def __init__(self):
 
         j = 0
+        print(assets)
         for i in assets:
+            print(i)
+            print(self,i,self.datas[j])
             setattr(self, i, self.datas[j])
             j += 1
         
@@ -164,16 +237,16 @@ class AssetAllocation(bt.Strategy):
                 self.order_target_percent(getattr(self, i), target=w)
         self.counter += 1
 
+class BuyAndHold(bt.Strategy):
 
-############################################################
-# Backtesting Mean Variance Strategy
-############################################################
+    def __init__(self):
+        self.counter = 0
 
-assets = returns.columns.tolist()
-weights = models['MV']
-
-assets = returns.columns.tolist()
-weights = models['MV']
+    def next(self):
+        if self.counter >= 1004:
+            if self.getposition(self.data).size == 0:
+                self.order_target_percent(self.data, target=0.99)
+        self.counter += 1 
 
 def backtest(datas, strategy, start, end, plot=False, **kwargs):
     cerebro = bt.Cerebro()
@@ -205,6 +278,6 @@ def backtest(datas, strategy, start, end, plot=False, **kwargs):
 
 dd, cagr, sharpe = backtest(assets_prices,
                             AssetAllocation,
-                            start=start,
+                            start=1004,
                             end=end,
                             plot=True)
