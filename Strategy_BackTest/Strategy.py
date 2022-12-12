@@ -30,7 +30,7 @@ pd.options.display.float_format = '{:.4%}'.format
 
 
 # Downloading parameters
-def excel_download():
+def excel_download2():
     holdings_url = "https://github.com/ra6it/RiskParity/blob/main/RiskParity_Holdings_Constraints.xlsx?raw=true"
     holdings_url = requests.get(holdings_url).content
     assets = pd.read_excel(holdings_url,'Holdings',usecols="A:B", engine='openpyxl')
@@ -45,8 +45,7 @@ def excel_download():
     constraint_url = requests.get(constraint_url).content
     constraints = pd.read_excel(holdings_url,'Constraints',usecols="B:K", engine='openpyxl')
     constraints=pd.DataFrame(constraints)
-    prices = yf.download(asset, start=Start, end=End)
-    return asset_classes, constraints, prices, asset
+    return asset_classes, constraints, asset
         
 # Downloading data
 def data_download(asset_classes):
