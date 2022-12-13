@@ -4,7 +4,7 @@ import yfinance as yf
 import backtrader as bt
 import numpy as np
 import warnings
-from Strategy import *
+import requests
 warnings.filterwarnings("ignore")
 
 # Date range
@@ -51,9 +51,8 @@ def runner(asset_classes, constraints, prices, asset,returns):
     method_mu, method_cov = method()
     Port = portfolio_object(asset_classes,method_mu, method_cov, returns)
     A,B = constraints_weightings(constraints,asset_classes)
-    w = ainequality(A,B,Port)
-    #returns(prices, asset_classes)
-    return(Port, w)
+    w, returns = ainequality(A,B,Port)
+    return(Port, w, returns)
 
 def method():
     method_mu='hist' # Method to estimate expected returns based on historical data.
@@ -69,8 +68,8 @@ def ainequality(A,B,Port):
     Port.ainequality = A
     Port.binequality = B
     w = Port.optimization(model=Model, rm=Rm, obj=Obj, rf=Rf, l=L, hist=Hist)
-    frontier_create(Port,w)
-    return(w)
+    returns = frontier_create(Port,w)
+    return(w, returns)
 
 def frontier_create(Port,w):
     frontier = Port.efficient_frontier(model=Model, rm=Rm, points=Points, rf=Rf, hist=Hist)
@@ -81,10 +80,9 @@ def frontier_create(Port,w):
     ax = rp.plot_frontier(w_frontier=frontier, mu=mu, cov=cov, returns=returns, rm=Rm,
                       rf=Rf, alpha=0.05, cmap='viridis', w=w, label=label,
                       marker='*', s=16, c='r', height=6, width=10, ax=None)
+    return(returns)
 
 asset_classes, constraints, asset = excel_download()
-
-
 
 assets = asset
 # Downloading data
@@ -183,9 +181,6 @@ print(index_)
 
 increment = 21
 
-
-
-print(returns)
 c = 0
 for j in rms:
     returns = returns
@@ -196,10 +191,11 @@ for j in rms:
             Y = returns.iloc[c-b:c,:]
             if c >= increment:
                 Port, w = runner(asset_classes, constraints, prices, asset,Y)
-
                 if w is None:
                     w = weights.tail(1).T
                 weights = pd.concat([weights, w.T], axis = 0)
             c = c + increment
-        print(weights)
-        models[j] = weights.copy()
+
+    models[j] = weights.copy()
+
+print(weights)
