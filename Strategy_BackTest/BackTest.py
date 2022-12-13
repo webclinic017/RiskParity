@@ -189,9 +189,9 @@ for j in rms:
         b = increment + i
         while c < 265:
             Y = returns.iloc[c-b:c,:]
-            print(Y)
+            print(constraints)
             if c >= increment:
-                Port, w = runner(asset_classes, constraints, Y)
+                Port, w, returns = runner(asset_classes, constraints, Y)
                 if w is None:
                     w = weights.tail(1).T
                 weights = pd.concat([weights, w.T], axis = 0)
