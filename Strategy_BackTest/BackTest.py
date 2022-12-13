@@ -219,15 +219,16 @@ print(start,":",end)
 class AssetAllocation(bt.Strategy):
 
     def __init__(self):
-
         j = 0
-        print(assets)
         for i in assets:
-            print(i)
-            print(self,i,self.datas[j])
-            setattr(self, i, self.datas[j])
+            print(j)
+            print(self)
+            try:
+                setattr(self, i, self.datas[j])
+            except:
+                print('fuck')
             j += 1
-        
+        #setattr(self, i, self.datas[10])
         self.counter = 0
         
     def next(self):
@@ -259,6 +260,7 @@ def backtest(datas, strategy, start, end, plot=False, **kwargs):
                                      slip_limit=True,
                                      slip_match=True,
                                      slip_out=False)
+    print(datas)
     for data in datas:
         cerebro.adddata(data)
 
