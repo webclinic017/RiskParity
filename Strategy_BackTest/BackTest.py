@@ -47,7 +47,7 @@ def excel_download():
     constraints=pd.DataFrame(constraints)
     return asset_classes, constraints, asset
 
-def runner(asset_classes, constraints, prices, asset,returns):
+def runner(asset_classes, constraints, returns):
     method_mu, method_cov = method()
     Port = portfolio_object(asset_classes,method_mu, method_cov, returns)
     A,B = constraints_weightings(constraints,asset_classes)
@@ -189,8 +189,9 @@ for j in rms:
         b = increment + i
         while c < 265:
             Y = returns.iloc[c-b:c,:]
+            print(Y)
             if c >= increment:
-                Port, w = runner(asset_classes, constraints, prices, asset,Y)
+                Port, w = runner(asset_classes, constraints, Y)
                 if w is None:
                     w = weights.tail(1).T
                 weights = pd.concat([weights, w.T], axis = 0)
