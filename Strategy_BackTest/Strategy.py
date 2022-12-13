@@ -189,7 +189,7 @@ for j in rms:
 
         method_mu='hist' # Method to estimate expected returns based on historical data.
         method_cov='hist' # Method to estimate covariance matrix based on historical data.
-
+        print(port)
         port.assets_stats(method_mu=method_mu, method_cov=method_cov, d=0.94)
         
         # Estimate optimal portfolio:

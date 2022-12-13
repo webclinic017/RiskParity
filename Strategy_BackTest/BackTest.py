@@ -2,9 +2,10 @@ import pandas as pd
 import datetime
 import yfinance as yf
 import backtrader as bt
-import numpy as np
+import numpy as np 
 import warnings
 import requests
+from calendar import monthrange
 warnings.filterwarnings("ignore")
 
 # Date range
@@ -48,16 +49,11 @@ def excel_download():
     return asset_classes, constraints, asset
 
 def runner(asset_classes, constraints, returns):
-    method_mu, method_cov = method()
+    method_mu = method_cov = 'hist'
     Port = portfolio_object(asset_classes,method_mu, method_cov, returns)
     A,B = constraints_weightings(constraints,asset_classes)
     w, returns = ainequality(A,B,Port)
     return(Port, w, returns)
-
-def method():
-    method_mu='hist' # Method to estimate expected returns based on historical data.
-    method_cov='hist' # Method to estimate covariance matrix based on historical data.
-    return method_mu, method_cov
 
 def portfolio_object(assets,method_mu, method_cov,returns):
     Port = rp.Portfolio(returns)
@@ -107,21 +103,6 @@ prices_.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
 benchmark = bt.feeds.PandasData(dataname=prices_, plot=False)
 
 ############################################################
-# Building the Buy and Hold strategy
-############################################################
-
-class BuyAndHold(bt.Strategy):
-
-    def __init__(self):
-        self.counter = 0
-
-    def next(self):
-        if self.counter >= 1004:
-            if self.getposition(self.data).size == 0:
-                self.order_target_percent(self.data, target=0.99)
-        self.counter += 1 
-
-############################################################
 # Calculate assets returns
 ############################################################
 
@@ -131,21 +112,6 @@ data = prices.loc[:, ('Adj Close', slice(None))]
 data.columns = assets
 #data = data.drop(columns=['SPY']).dropna()
 returns = data.pct_change().dropna()
-
-############################################################
-# Selecting Dates for Rebalancing
-############################################################
-
-# Selecting last day of month of available data
-index = returns.groupby([returns.index.year, returns.index.month]).tail(1).index
-
-index_2 = returns.index
-
-# Monthly Dates
-index = [x for x in index if float(x.month) % 12.0 == 0 ] 
-
-# Dates where the strategy will be backtested
-index_ = [index_2.get_loc(x) for x in index if index_2.get_loc(x) > 0]
 
 ############################################################
 # Building Constraints
@@ -170,33 +136,31 @@ A,B = constraints_weightings(constraints,asset_classes)
 # rebalancing dates
 ############################################################
 
-models = {}
-
-# rms = ['MV', 'MAD', 'MSV', 'FLPM', 'SLPM',
-#        'CVaR', 'WR', 'MDD', 'ADD', 'CDaR']
-
 rms = ['MV']
 
-print(index_)
+rng_start = pd.date_range(start, periods=12, freq='MS')
 
-increment = 21
+ret = returns
 
-c = 0
-for j in rms:
-    returns = returns
-    weights = pd.DataFrame([])
-    for i in index_:
-        b = increment + i
-        while c < 265:
-            Y = returns.iloc[c-b:c,:]
-            print(constraints)
-            if c >= increment:
-                Port, w, returns = runner(asset_classes, constraints, Y)
-                if w is None:
-                    w = weights.tail(1).T
-                weights = pd.concat([weights, w.T], axis = 0)
-            c = c + increment
+weights = pd.DataFrame([])
 
-    models[j] = weights.copy()
-
+for i in rng_start:
+    rng_end = pd.date_range(i, periods=1, freq='M')
+    for b in rng_end:
+        Y = ret[i:b]
+        Port, w, returns = runner(asset_classes, constraints, Y)
+        if w is None:
+            w = weights.tail(1).T
+        weights = pd.concat([weights, w.T], axis = 0)
+        print(w * Y)
 print(weights)
+
+
+
+###
+# Setup backtesting #
+###
+
+init_investment = 10000
+
+
