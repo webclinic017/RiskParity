@@ -152,7 +152,11 @@ for i in rng_start:
         if w is None:
             w = weights.tail(1).T
         weights = pd.concat([weights, w.T], axis = 0)
-        print(w * Y)
+
+        # Need to do:
+            #Combine the weights and the returns into one array, I guess 
+
+        print(np.multiply(w.T,Y))
 print(weights)
 
 
@@ -160,7 +164,7 @@ print(weights)
 ###
 # Setup backtesting #
 ###
-
+1
 init_investment = 10000
 
 
