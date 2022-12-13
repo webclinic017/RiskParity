@@ -223,6 +223,7 @@ class AssetAllocation(bt.Strategy):
         for i in assets:
             print(j)
             print(self)
+            print(i)
             try:
                 setattr(self, i, self.datas[j])
             except:
