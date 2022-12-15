@@ -5,6 +5,7 @@ import backtrader as bt
 import numpy as np 
 import warnings
 import requests
+import plotly.graph_objects as go
 from calendar import monthrange
 warnings.filterwarnings("ignore")
 
@@ -73,9 +74,9 @@ def frontier_create(Port,w):
     mu = Port.mu # Expected returns
     cov = Port.cov # Covariance matrix
     returns = Port.returns # Returns of the assets
-    ax = rp.plot_frontier(w_frontier=frontier, mu=mu, cov=cov, returns=returns, rm=Rm,
-                      rf=Rf, alpha=0.05, cmap='viridis', w=w, label=label,
-                      marker='*', s=16, c='r', height=6, width=10, ax=None)
+    #ax = rp.plot_frontier(w_frontier=frontier, mu=mu, cov=cov, returns=returns, rm=Rm,
+                      #rf=Rf, alpha=0.05, cmap='viridis', w=w, label=label,
+                      #marker='*', s=16, c='r', height=6, width=10, ax=None)
     return(returns)
 
 asset_classes, constraints, asset = excel_download()
@@ -84,6 +85,9 @@ assets = asset
 # Downloading data
 prices = yf.download(assets, start=start, end=end)
 prices = prices.dropna()
+
+prices_2 = prices
+
 
 ############################################################
 # Create objects that contain the prices of assets
@@ -106,7 +110,7 @@ benchmark = bt.feeds.PandasData(dataname=prices_, plot=False)
 # Calculate assets returns
 ############################################################
 
-pd.options.display.float_format = '{:.4%}'.format
+#pd.options.display.float_format = '{:.4%}'.format
 
 data = prices.loc[:, ('Adj Close', slice(None))]
 data.columns = assets
@@ -142,27 +146,65 @@ rng_start = pd.date_range(start, periods=12, freq='MS')
 
 ret = returns
 
+############################################################
+# Setting up empty DFs
+############################################################
+
 weights = pd.DataFrame([])
+x = pd.DataFrame([])
+asset_pr = pd.DataFrame([])
+sum_returns = pd.DataFrame([])
 
 for i in rng_start:
     rng_end = pd.date_range(i, periods=1, freq='M')
     for b in rng_end:
         Y = ret[i:b]
         Port, w, returns = runner(asset_classes, constraints, Y)
+        re = returns.to_numpy()
+        we = w.to_numpy()
+        myreturns = re.T * we
+
+        myret = pd.DataFrame(myreturns.T,columns = asset, index = Y.index)
+        
         if w is None:
             w = weights.tail(1).T
         weights = pd.concat([weights, w.T], axis = 0)
+        x = pd.concat([x, myret], axis = 0)
 
-        # Need to do:
-            #Combine the weights and the returns into one array, I guess 
+        adj_close = prices['Adj Close'][i:b].to_numpy()
 
-        print(np.multiply(w.T,Y))
-print(weights)
+        price = adj_close.T * we * 10000
 
+        portfolio_price = pd.DataFrame(price.T, columns = asset, index = prices[i:b].index)
+
+        asset_pr = pd.concat([asset_pr, portfolio_price], axis = 0)
+
+        f = prices['Adj Close'][i:b]
+        sum_ret = f/f.iloc[0]
+        sum_ret = round(f.sum(axis=1))
+        sum_returns_total = sum_ret.to_numpy().T * we * 10000
+
+        sum_ret = pd.DataFrame(sum_returns_total.T, index = f.index)
+        sum_returns = pd.concat([sum_returns, sum_ret], axis=0)
+        
+        ##spy_ret
+        spy_ret = prices['SPY']['Adj Close'][i:b]
+        print(spy_ret)
 
 
 ###
 # Setup backtesting #
 ###
-1
-init_investment = 10000
+
+print(sum_returns)
+
+asset_pr['Portfolio Total'] = round(sum_returns.sum(axis=1))
+
+asset_pr['Cum Return'] = asset_pr['Portfolio Total']/asset_pr.iloc[0]['Portfolio Total']
+
+fig = go.Figure()
+
+print("PRINTING FIG")
+
+fig.add_trace(go.Scatter(x=asset_pr['Portfolio Total'].index , y=asset_pr['Portfolio Total'], name='Portfolio Total'))
+
