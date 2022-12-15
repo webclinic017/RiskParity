@@ -154,6 +154,7 @@ weights = pd.DataFrame([])
 x = pd.DataFrame([])
 asset_pr = pd.DataFrame([])
 sum_returns = pd.DataFrame([])
+we_df = pd.DataFrame([])
 
 for i in rng_start:
     rng_end = pd.date_range(i, periods=1, freq='M')
@@ -163,9 +164,9 @@ for i in rng_start:
         re = returns.to_numpy()
         we = w.to_numpy()
         myreturns = re.T * we
-
-        myret = pd.DataFrame(myreturns.T,columns = asset, index = Y.index)
         
+        myret = pd.DataFrame(myreturns.T,columns = asset, index = Y.index)
+
         if w is None:
             w = weights.tail(1).T
         weights = pd.concat([weights, w.T], axis = 0)
@@ -179,32 +180,37 @@ for i in rng_start:
 
         asset_pr = pd.concat([asset_pr, portfolio_price], axis = 0)
 
-        f = prices['Adj Close'][i:b]
-        sum_ret = f/f.iloc[0]
-        sum_ret = round(f.sum(axis=1))
-        sum_returns_total = sum_ret.to_numpy().T * we * 10000
-
-        sum_ret = pd.DataFrame(sum_returns_total.T, index = f.index)
-        sum_returns = pd.concat([sum_returns, sum_ret], axis=0)
-        
-        ##spy_ret
-        spy_ret = prices['SPY']['Adj Close'][i:b]
-        print(spy_ret)
-
 
 ###
 # Setup backtesting #
 ###
+############################################################
+# Portfolio returns
+############################################################
 
-print(sum_returns)
+f = prices['Adj Close']
+sum_ret = f.sum(axis=1)
+sum_ret = sum_ret/sum_ret.iloc[0]
 
-asset_pr['Portfolio Total'] = round(sum_returns.sum(axis=1))
 
-asset_pr['Cum Return'] = asset_pr['Portfolio Total']/asset_pr.iloc[0]['Portfolio Total']
+sum_ret = sum_ret * 10000
+
+############################################################
+# Spy returns
+############################################################
+
+SPY = prices['Adj Close']
+SPY = SPY['SPY']
+SPY = SPY/SPY.iloc[0]*10000
+
+############################################################
+# Plot
+############################################################
 
 fig = go.Figure()
 
 print("PRINTING FIG")
 
-fig.add_trace(go.Scatter(x=asset_pr['Portfolio Total'].index , y=asset_pr['Portfolio Total'], name='Portfolio Total'))
+fig.add_trace(go.Scatter(x=sum_ret.index, y=sum_ret, name='Portfolio Total'))
 
+fig.add_trace(go.Scatter(x=SPY.index , y=SPY, name='Benchmark_Returns'))
