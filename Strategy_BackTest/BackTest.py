@@ -10,8 +10,8 @@ from calendar import monthrange
 warnings.filterwarnings("ignore")
 
 # Date range
-Start = '2020-01-01'
-End = '2020-12-31'
+Start = '2019-01-01'
+End = '2022-12-11'
 start = Start
 end = End
 # Tickers of assets
