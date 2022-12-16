@@ -202,7 +202,7 @@ sum_ret = sum_ret * 10000
 SPY = prices['Adj Close']
 SPY = SPY['VTI']
 SPY = SPY/SPY.iloc[0]*10000
-
+print(SPY['VTI'])
 ############################################################
 # Plot
 ############################################################
@@ -213,4 +213,4 @@ print("PRINTING FIG")
 
 fig.add_trace(go.Scatter(x=sum_ret.index, y=sum_ret, name='Portfolio Total'))
 
-fig.add_trace(go.Scatter(x=SPY.index , y=SPY, name='Benchmark_Returns'))
+fig.add_trace(go.Scatter(x=SPY.index , y=SPY, name=SPY['VTI']))
