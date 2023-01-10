@@ -10,8 +10,8 @@ from calendar import monthrange
 warnings.filterwarnings("ignore")
 
 # Date range
-Start = '2019-01-01'
-End = '2022-12-11'
+Start = '2022-11-01'
+End = '2022-12-31'
 start = Start
 end = End
 # Tickers of assets
@@ -142,7 +142,7 @@ A,B = constraints_weightings(constraints,asset_classes)
 
 rms = ['MV']
 
-rng_start = pd.date_range(start, periods=12, freq='MS')
+rng_start = pd.date_range(start, periods=36, freq='MS')
 
 ret = returns
 
@@ -198,11 +198,11 @@ sum_ret = sum_ret * 10000
 ############################################################
 # Spy returns
 ############################################################
-
+print(prices.head)
 SPY = prices['Adj Close']
-SPY = SPY['VTI']
+SPY = SPY['VTI'].dropna()
+print(SPY)
 SPY = SPY/SPY.iloc[0]*10000
-print(SPY['VTI'])
 ############################################################
 # Plot
 ############################################################
@@ -213,4 +213,4 @@ print("PRINTING FIG")
 
 fig.add_trace(go.Scatter(x=sum_ret.index, y=sum_ret, name='Portfolio Total'))
 
-fig.add_trace(go.Scatter(x=SPY.index , y=SPY, name=SPY['VTI']))
+fig.add_trace(go.Scatter(x=SPY.index , y=SPY, name='VTI'))
