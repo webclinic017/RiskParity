@@ -113,6 +113,7 @@ benchmark = bt.feeds.PandasData(dataname=prices_, plot=False)
 #pd.options.display.float_format = '{:.4%}'.format
 
 data = prices.loc[:, ('Adj Close', slice(None))]
+print(data)
 data.columns = assets
 #data = data.drop(columns=['SPY']).dropna()
 returns = data.pct_change().dropna()
