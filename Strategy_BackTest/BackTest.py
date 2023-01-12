@@ -7,13 +7,23 @@ import warnings
 import requests
 import plotly.graph_objects as go
 from calendar import monthrange
+from dateutil.relativedelta import relativedelta
+
 warnings.filterwarnings("ignore")
 
 # Date range
-Start = '2022-01-01'
-End = '2022-12-31'
+Start = '2018-01-01'
+End = '2022-06-30'
 start = Start
 end = End
+
+date1 = datetime.datetime.strptime(Start, "%Y-%m-%d")
+date2 = datetime.datetime.strptime(End, "%Y-%m-%d")
+print(date1,date2)
+diff = relativedelta(date2, date1)
+print(diff.years, diff.months)
+
+months_between = (diff.years)*12 + diff.months + 1
 # Tickers of assets
 
 Model='Classic' # Could be Classic (historical), BL (Black Litterman) or FM (Factor Model)
@@ -53,7 +63,6 @@ def excel_download():
     return asset_classes, constraints, asset
 
 def runner(asset_classes, constraints, returns):
-    print(asset_classes)
     method_mu = method_cov = 'hist'
     Port = portfolio_object(asset_classes,method_mu, method_cov, returns)
     A,B = constraints_weightings(constraints,asset_classes)
@@ -89,33 +98,21 @@ assets = asset
 # Downloading data
 
 ################## Here, I need this to be in my backtesting loop, where start and end is called with each month.
-prices = yf.download(assets, start=start, end=end)
+df_list = []
+for i in assets:
+    asset_2 = yf.download(i, start=start, end=end)['Adj Close']
+    df_list.append(pd.DataFrame(asset_2))
+
+new_df = pd.concat(df_list, axis=1)
+new_df.columns = assets
+print(new_df)
+
+prices = new_df
 prices = prices.dropna()
 
 valid_assets = asset_classes['Asset'].isin(asset)
 
 asset_classes = asset_classes[valid_assets]
-print(len(asset_classes))
-print(prices.head())
-prices_2 = prices
-
-
-############################################################
-# Create objects that contain the prices of assets
-############################################################
-
-# Creating Assets bt.feeds
-assets_prices = []
-for i in assets:
-    if i != 'SPY':
-        prices_ = prices.drop(columns='Adj Close').loc[:, (slice(None), i)].dropna()
-        prices_.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
-        assets_prices.append(bt.feeds.PandasData(dataname=prices_, plot=False))
-
-# Creating Benchmark bt.feeds        
-prices_ = prices.drop(columns='Adj Close').loc[:, (slice(None), 'SPY')].dropna()
-prices_.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
-benchmark = bt.feeds.PandasData(dataname=prices_, plot=False)
 
 ############################################################
 # Calculate assets returns
@@ -123,10 +120,8 @@ benchmark = bt.feeds.PandasData(dataname=prices_, plot=False)
 
 #pd.options.display.float_format = '{:.4%}'.format
 
-data = prices.loc[:, ('Adj Close', slice(None))]
-print(assets)
-#data.columns = data.head()
-#data = data.drop(columns=['SPY']).dropna()
+data = prices
+
 returns = data.pct_change().dropna()
 
 ############################################################
@@ -154,8 +149,8 @@ A,B = constraints_weightings(constraints,asset_classes)
 
 rms = ['MV']
 
-rng_start = pd.date_range(start, periods=36, freq='MS')
-
+rng_start = pd.date_range(start, periods=months_between, freq='MS')
+print(rng_start)
 ret = returns
 
 ############################################################
@@ -167,26 +162,19 @@ x = pd.DataFrame([])
 asset_pr = pd.DataFrame([])
 sum_returns = pd.DataFrame([])
 we_df = pd.DataFrame([])
-
 for i in rng_start:
     rng_end = pd.date_range(i, periods=1, freq='M')
     for b in rng_end:
         Y = ret[i:b]
-        print(i,b)
-        print(Y)
         #Port, w, returns = runner(asset_classes, constraints, Y)
         port = rp.Portfolio(returns = Y)
         port.assets_stats(method_mu=method_mu, method_cov=method_cov, d=0.94)
-        print(port)
         w = port.optimization(model=Model, rm=Rm, obj=Obj, rf=Rf, l=L, hist=Hist)
         re = returns.to_numpy()
         we = w.to_numpy()
-
-        print(len(re),len(we))
         myreturns = re.T * we
-        print(myreturns)
-        myret = pd.DataFrame(myreturns.T,columns = asset, index = Y.index)
-
+        myret = pd.DataFrame(myreturns.T)
+        myret.columns = Y.columns
         if w is None:
             w = weights.tail(1).T
         weights = pd.concat([weights, w.T], axis = 0)
@@ -196,7 +184,7 @@ for i in rng_start:
 
         price = adj_close.T * we * 10000
 
-        portfolio_price = pd.DataFrame(price.T, columns = asset, index = prices[i:b].index)
+        portfolio_price = pd.DataFrame(price.T, columns = Y.columns, index = prices[i:b].index)
 
         asset_pr = pd.concat([asset_pr, portfolio_price], axis = 0)
 
@@ -218,10 +206,8 @@ sum_ret = sum_ret * 10000
 ############################################################
 # Spy returns
 ############################################################
-print(prices.head)
 SPY = prices['Adj Close']
 SPY = SPY['VTI'].dropna()
-print(SPY)
 SPY = SPY/SPY.iloc[0]*10000
 ############################################################
 # Plot
