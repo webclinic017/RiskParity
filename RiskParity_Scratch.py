@@ -4,12 +4,9 @@ import numpy as np
 import datetime
 import yfinance as yf
 import requests
-from pypfopt.efficient_frontier import EfficientFrontier
 from scipy.optimize import minimize
 TOLERANCE = 1e-10
 #To start, we will calculate the risk allocation
-
-
 
 
 
@@ -25,14 +22,10 @@ def download_data(start, end):
     holdings_url = requests.get(holdings_url).content
     assets = pd.read_excel(holdings_url,'Holdings',usecols="A:B", engine='openpyxl')
     asset_selection = assets['Asset'].tolist()
-    print(asset_selection)
-    prices = yf.download(asset_selection, start=start, end=end).loc[:, 'Adj Close']
-    prices = download_data(asset_selection, start, end)
-    prices_pct = prices.pct_change()
-    return prices, prices_pct
-
-def covariance_matrix(prices_pct):
-    covariances = prices_pct.cov()
-    print(covariances)
-
-download_data(start, end)
+    prices = yf.download(asset_selection, start=start, end=end)["Adj Close"]
+    prices_pct = prices.pct_change().dropna()
+    cov_matrix = prices_pct.cov()
+    return prices, prices_pct, cov_matrix
+prices, prices_pct, cov_matrix = download_data(start, end)
+weights_1 = [1/len(prices)]*len(prices)
+print(weights_1)

@@ -10,7 +10,7 @@ from calendar import monthrange
 warnings.filterwarnings("ignore")
 
 # Date range
-Start = '2022-11-01'
+Start = '2022-01-01'
 End = '2022-12-31'
 start = Start
 end = End
