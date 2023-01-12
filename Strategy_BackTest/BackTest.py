@@ -52,6 +52,7 @@ def excel_download():
 def runner(asset_classes, constraints, returns):
     method_mu = method_cov = 'hist'
     Port = portfolio_object(asset_classes,method_mu, method_cov, returns)
+    print(asset_classes)
     A,B = constraints_weightings(constraints,asset_classes)
     w, returns = ainequality(A,B,Port)
     return(Port, w, returns)
@@ -83,9 +84,14 @@ asset_classes, constraints, asset = excel_download()
 
 assets = asset
 # Downloading data
+
+################## Here, I need this to be in my backtesting loop, where start and end is called with each month.
 prices = yf.download(assets, start=start, end=end)
 prices = prices.dropna()
 
+valid_assets = asset_classes['Asset'].isin(assets)
+
+asset_classes = asset_classes[valid_assets]
 prices_2 = prices
 
 
@@ -113,8 +119,8 @@ benchmark = bt.feeds.PandasData(dataname=prices_, plot=False)
 #pd.options.display.float_format = '{:.4%}'.format
 
 data = prices.loc[:, ('Adj Close', slice(None))]
-print(data)
-data.columns = assets
+print(assets)
+#data.columns = data.head()
 #data = data.drop(columns=['SPY']).dropna()
 returns = data.pct_change().dropna()
 
