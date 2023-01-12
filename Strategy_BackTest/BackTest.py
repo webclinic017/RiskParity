@@ -23,6 +23,8 @@ Hist = True # Use historical scenarios for risk measures that depend on scenario
 Rf = 0.04 # Risk free rate
 L = 1 # Risk aversion factor, only useful when obj is 'Utility'
 Points = 50 # Number of points of the frontier
+method_mu ='hist' # Method to estimate expected returns based on historical data.
+method_cov ='hist' # Method to estimate covariance matrix based on historical data.
 
 def constraints_weightings(constraints,asset_classes):
     asset_classes = pd.DataFrame(asset_classes)
@@ -30,6 +32,7 @@ def constraints_weightings(constraints,asset_classes):
     data = constraints.fillna("")
     data = data.values.tolist()
     A, B = rp.assets_constraints(constraints, asset_classes)
+    print(A,B)
     return A, B
 
 def excel_download():
@@ -50,9 +53,9 @@ def excel_download():
     return asset_classes, constraints, asset
 
 def runner(asset_classes, constraints, returns):
+    print(asset_classes)
     method_mu = method_cov = 'hist'
     Port = portfolio_object(asset_classes,method_mu, method_cov, returns)
-    print(asset_classes)
     A,B = constraints_weightings(constraints,asset_classes)
     w, returns = ainequality(A,B,Port)
     return(Port, w, returns)
@@ -89,9 +92,11 @@ assets = asset
 prices = yf.download(assets, start=start, end=end)
 prices = prices.dropna()
 
-valid_assets = asset_classes['Asset'].isin(assets)
+valid_assets = asset_classes['Asset'].isin(asset)
 
 asset_classes = asset_classes[valid_assets]
+print(len(asset_classes))
+print(prices.head())
 prices_2 = prices
 
 
@@ -167,11 +172,19 @@ for i in rng_start:
     rng_end = pd.date_range(i, periods=1, freq='M')
     for b in rng_end:
         Y = ret[i:b]
-        Port, w, returns = runner(asset_classes, constraints, Y)
+        print(i,b)
+        print(Y)
+        #Port, w, returns = runner(asset_classes, constraints, Y)
+        port = rp.Portfolio(returns = Y)
+        port.assets_stats(method_mu=method_mu, method_cov=method_cov, d=0.94)
+        print(port)
+        w = port.optimization(model=Model, rm=Rm, obj=Obj, rf=Rf, l=L, hist=Hist)
         re = returns.to_numpy()
         we = w.to_numpy()
+
+        print(len(re),len(we))
         myreturns = re.T * we
-        
+        print(myreturns)
         myret = pd.DataFrame(myreturns.T,columns = asset, index = Y.index)
 
         if w is None:
