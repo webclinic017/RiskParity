@@ -52,6 +52,7 @@ def excel_download():
 asset_classes, asset = excel_download()
 
 assets = asset
+print(assets)
 # Downloading data
 
 ################## Here, I need this to be in my backtesting loop, where start and end is called with each month.
