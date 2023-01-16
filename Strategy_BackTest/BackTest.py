@@ -161,12 +161,10 @@ for i in rng_start:
 ############################################################
 # Portfolio returns
 ############################################################
+print(portfolio_price)
 
-f = asset_pr
-sum_ret = f.sum(axis=1)
-sum_ret = sum_ret/sum_ret.iloc[0]
-print(asset_pr)
-sum_ret = sum_ret * 10000
+initial_value = 10000
+print((1 + asset_pr).cumprod())
 
 ############################################################
 # Spy returns
@@ -182,5 +180,5 @@ fig = go.Figure()
 
 print("PRINTING FIG")
 
-fig.add_trace(go.Scatter(x=asset_pr.index, y=asset_pr, name='Portfolio Total'))
+fig.add_trace(go.Scatter(x=portfolio_value.index, y=portfolio_value, name='Portfolio Total'))
 
