@@ -144,11 +144,10 @@ for i in rng_start:
         next_i,next_b = next_month(i)
         y_next = Z[next_i:next_b]
         #Convert the returns and weightings to numpy.
-        print(y_next)
-        y_next = np.
-        myreturns = y_next.T * w
+        myreturns = np.dot(w, y_next.T)
         myret = pd.DataFrame(myreturns.T)
-        myret.columns = Y.columns
+        print(myret)
+        myret.columns = Y.columns[0]
         if w is None:
             w = weights.tail(1).T
         weights = pd.concat([weights, w.T], axis = 0)
