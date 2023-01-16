@@ -152,9 +152,7 @@ for i in rng_start:
         portfolio_price = pd.DataFrame(myret, index = y_next.index)
         asset_pr = pd.concat([asset_pr, portfolio_price], axis = 0)
 
-###
-# Setup backtesting #
-###
+
 ############################################################
 # Portfolio returns
 ############################################################
@@ -165,19 +163,17 @@ cumret.rename(columns={'0': 'Returns Total'}, inplace = True)
 
 cumret = pd.DataFrame(cumret)
 
-
-
-print(cumret)
 ############################################################
 # Spy returns
 ############################################################
-#SPY = prices['Adj Close']
-#SPY = SPY['VTI'].dropna()
-#SPY = SPY/SPY.iloc[0]*10000
+SPY = prices['SPY'].dropna()
+SPY = SPY/SPY.iloc[0]*10000
 ############################################################
 # Plot
 ############################################################
-cumret.plot()
+cumret.plot(label = 'Portfolio Returns')
+SPY.plot(label='SPY')
 plt.xlabel('Date')
-plt.ylabel('Values')
+plt.ylabel('Portfolio Returns')
+plt.legend()
 plt.show()
