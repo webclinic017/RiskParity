@@ -141,7 +141,7 @@ for i in rng_start:
         Y = ret[i:b]
         Ycov = Y.cov()
         optimized_weights = optimize_risk_parity(Y, Ycov)
-        w = optimized_weights.round(2)
+        w = optimized_weights #.round(4)
         print("Optimized Weights: ", w)
         next_i,next_b = next_month(i)
         y_next = Z[next_i:next_b]
