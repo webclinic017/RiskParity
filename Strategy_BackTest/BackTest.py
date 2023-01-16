@@ -14,7 +14,7 @@ from scipy.optimize import minimize
 warnings.filterwarnings("ignore")
 
 # Date range
-Start = '2022-01-01'
+Start = '2020-01-01'
 End = '2022-06-30'
 start = Start
 end = End
@@ -132,6 +132,7 @@ asset_pr = pd.DataFrame([])
 sum_returns = pd.DataFrame([])
 we_df = pd.DataFrame([])
 y_next = pd.DataFrame([])
+
 for i in rng_start:
     rng_end = pd.date_range(i, periods=1, freq='M')
     for b in rng_end:
@@ -139,28 +140,20 @@ for i in rng_start:
         Y = ret[i:b]
         Ycov = Y.cov()
         optimized_weights = optimize_risk_parity(Y, Ycov)
-        print("Optimized Weights: ", optimized_weights)
-        w = optimized_weights
+        w = optimized_weights.round(2)
+        print("Optimized Weights: ", w)
         next_i,next_b = next_month(i)
         y_next = Z[next_i:next_b]
         #Convert the returns and weightings to numpy.
         myreturns = np.dot(w, y_next.T)
-        myret = pd.DataFrame(myreturns.T)
-        print(myret)
-        myret.columns = Y.columns[0]
+        myret = pd.DataFrame(myreturns.T, index = y_next.index)
+        myret = myret * 10000
         if w is None:
             w = weights.tail(1).T
-        weights = pd.concat([weights, w.T], axis = 0)
+        weights = pd.concat([weights, pd.DataFrame(w.T)], axis = 0)
         x = pd.concat([x, myret], axis = 0)
-
-        adj_close = prices['Adj Close'][i:b].to_numpy()
-
-        price = adj_close.T * we * 10000
-
-        portfolio_price = pd.DataFrame(price.T, columns = Y.columns, index = prices[i:b].index)
-
+        portfolio_price = pd.DataFrame(myret, index = y_next.index)
         asset_pr = pd.concat([asset_pr, portfolio_price], axis = 0)
-
 
 ###
 # Setup backtesting #
@@ -169,19 +162,18 @@ for i in rng_start:
 # Portfolio returns
 ############################################################
 
-f = prices['Adj Close']
+f = asset_pr
 sum_ret = f.sum(axis=1)
 sum_ret = sum_ret/sum_ret.iloc[0]
-
-
+print(asset_pr)
 sum_ret = sum_ret * 10000
 
 ############################################################
 # Spy returns
 ############################################################
-SPY = prices['Adj Close']
-SPY = SPY['VTI'].dropna()
-SPY = SPY/SPY.iloc[0]*10000
+#SPY = prices['Adj Close']
+#SPY = SPY['VTI'].dropna()
+#SPY = SPY/SPY.iloc[0]*10000
 ############################################################
 # Plot
 ############################################################
@@ -190,6 +182,5 @@ fig = go.Figure()
 
 print("PRINTING FIG")
 
-fig.add_trace(go.Scatter(x=sum_ret.index, y=sum_ret, name='Portfolio Total'))
+fig.add_trace(go.Scatter(x=asset_pr.index, y=asset_pr, name='Portfolio Total'))
 
-fig.add_trace(go.Scatter(x=SPY.index , y=SPY, name='VTI'))
