@@ -173,7 +173,5 @@ SPY = SPY/SPY.iloc[0]*10000
 ############################################################
 cumret.plot(label = 'Portfolio Returns')
 SPY.plot(label='SPY')
-plt.xlabel('Date')
-plt.ylabel('Portfolio Returns')
 plt.legend()
 plt.show()
