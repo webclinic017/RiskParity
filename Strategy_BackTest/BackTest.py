@@ -6,6 +6,7 @@ import numpy as np
 import warnings
 import riskfolio as rp
 import requests
+import matplotlib as plt
 import plotly.graph_objects as go
 from calendar import monthrange
 from dateutil.relativedelta import relativedelta
@@ -147,10 +148,6 @@ for i in rng_start:
         #Convert the returns and weightings to numpy.
         myreturns = np.dot(w, y_next.T)
         myret = pd.DataFrame(myreturns.T, index = y_next.index)
-        myret = myret * 10000
-        if w is None:
-            w = weights.tail(1).T
-        weights = pd.concat([weights, pd.DataFrame(w.T)], axis = 0)
         x = pd.concat([x, myret], axis = 0)
         portfolio_price = pd.DataFrame(myret, index = y_next.index)
         asset_pr = pd.concat([asset_pr, portfolio_price], axis = 0)
@@ -161,11 +158,16 @@ for i in rng_start:
 ############################################################
 # Portfolio returns
 ############################################################
-print(portfolio_price)
 
-initial_value = 10000
-print((1 + asset_pr).cumprod())
+cumret = (1 + x).cumprod() * 10000
 
+cumret.rename(columns={'0': 'Returns Total'}, inplace = True)
+
+cumret = pd.DataFrame(cumret)
+
+
+
+print(cumret)
 ############################################################
 # Spy returns
 ############################################################
@@ -175,10 +177,7 @@ print((1 + asset_pr).cumprod())
 ############################################################
 # Plot
 ############################################################
-
-fig = go.Figure()
-
-print("PRINTING FIG")
-
-fig.add_trace(go.Scatter(x=portfolio_value.index, y=portfolio_value, name='Portfolio Total'))
-
+cumret.plot()
+plt.xlabel('Date')
+plt.ylabel('Values')
+plt.show()
