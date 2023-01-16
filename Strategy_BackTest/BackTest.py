@@ -141,7 +141,7 @@ for i in rng_start:
         Y = ret[i:b]
         Ycov = Y.cov()
         optimized_weights = optimize_risk_parity(Y, Ycov)
-        w = optimized_weights #.round(4)
+        w = optimized_weights.round(2)
         print("Optimized Weights: ", w)
         next_i,next_b = next_month(i)
         y_next = Z[next_i:next_b]
@@ -173,5 +173,4 @@ SPY = SPY/SPY.iloc[0]*10000
 ############################################################
 cumret.plot(label = 'Portfolio Returns')
 SPY.plot(label='SPY')
-plt.legend()
-plt.show()
+
