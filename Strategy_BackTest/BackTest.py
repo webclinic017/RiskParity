@@ -9,6 +9,7 @@ import requests
 import plotly.graph_objects as go
 from calendar import monthrange
 from dateutil.relativedelta import relativedelta
+from scipy.optimize import minimize
 
 warnings.filterwarnings("ignore")
 
@@ -71,6 +72,27 @@ prices = new_df
 # Calculate assets returns
 ############################################################
 
+def optimize_risk_parity(Y, Ycov):
+    n = Y.shape[1]
+    # Define the risk contribution as a constraint
+    def risk_contribution(w):
+        sigma = np.sqrt(np.matmul(np.matmul(w, Ycov), w))
+        return (np.matmul(w, Ycov) * w) / sigma
+    # Define the optimization objective
+    def objective(w):
+        return -np.sum(w * Y.mean())
+    # Define the optimization constraints
+    cons = [{'type': 'eq', 'fun': lambda w: np.sum(w) - 1},
+            {'type': 'ineq', 'fun': lambda w: np.sum(risk_contribution(w)) - (1/n)}]
+    bounds = [(0, 1) for i in range(n)]
+    # Call the optimization solver
+    res = minimize(objective, np.ones(n)/n, constraints=cons, bounds=bounds, method='SLSQP',
+                   options={'disp': False, 'eps': 1e-8})
+    return res.x
+
+# Call the optimize function
+
+
 #pd.options.display.float_format = '{:.4%}'.format
 
 data = prices
@@ -98,27 +120,33 @@ ret = returns
 # Setting up empty DFs
 ############################################################
 
+def next_month(i):
+    next_i = i + pd.Timedelta(days=31)
+    next_b = pd.date_range(start=next_i, periods=1, freq='M')
+    next_b = next_b[0]
+    return next_i,next_b
+
 weights = pd.DataFrame([])
 x = pd.DataFrame([])
 asset_pr = pd.DataFrame([])
 sum_returns = pd.DataFrame([])
 we_df = pd.DataFrame([])
+y_next = pd.DataFrame([])
 for i in rng_start:
     rng_end = pd.date_range(i, periods=1, freq='M')
     for b in rng_end:
+        Z = ret
         Y = ret[i:b]
-        Y = Y.dropna()
-        print(Y)
-        port = rp.Portfolio(returns = Y)
-        print(port)
-        port.assets_stats(method_mu=method_mu, method_cov=method_cov, d=0.94)
-        w = port.optimization(model=Model, rm=Rm, obj=Obj, rf=Rf, l=L, hist=Hist)
-        print(w)
+        Ycov = Y.cov()
+        optimized_weights = optimize_risk_parity(Y, Ycov)
+        print("Optimized Weights: ", optimized_weights)
+        w = optimized_weights
+        next_i,next_b = next_month(i)
+        y_next = Z[next_i:next_b]
         #Convert the returns and weightings to numpy.
-
-        re = returns.to_numpy()
-        we = w.to_numpy()
-        myreturns = re.T * we
+        print(y_next)
+        y_next = np.
+        myreturns = y_next.T * w
         myret = pd.DataFrame(myreturns.T)
         myret.columns = Y.columns
         if w is None:
