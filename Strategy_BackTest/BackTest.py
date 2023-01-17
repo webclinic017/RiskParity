@@ -164,7 +164,6 @@ for i in rng_start:
         portfolio_price = pd.DataFrame(myret, index = y_next.index)
         asset_pr = pd.concat([asset_pr, portfolio_price], axis = 0)
 
-print(weighted_df)
 print(wght)
 ############################################################
 # Portfolio returns
