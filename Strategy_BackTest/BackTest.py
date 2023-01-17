@@ -15,7 +15,7 @@ from scipy.optimize import minimize
 warnings.filterwarnings("ignore")
 
 # Date range
-Start = '2020-01-01'
+Start = '2022-05-01'
 End = '2022-06-30'
 start = Start
 end = End
@@ -127,12 +127,19 @@ def next_month(i):
     next_b = next_b[0]
     return next_i,next_b
 
+#setting up the empty DFs
+
 weights = pd.DataFrame([])
 x = pd.DataFrame([])
 asset_pr = pd.DataFrame([])
 sum_returns = pd.DataFrame([])
 we_df = pd.DataFrame([])
 y_next = pd.DataFrame([])
+weight_df = pd.DataFrame([])
+weighted_df = pd.DataFrame([])
+time_df = pd.DataFrame([])
+timed_df = pd.DataFrame([])
+
 
 for i in rng_start:
     rng_end = pd.date_range(i, periods=1, freq='M')
@@ -142,7 +149,11 @@ for i in rng_start:
         Ycov = Y.cov()
         optimized_weights = optimize_risk_parity(Y, Ycov)
         w = optimized_weights.round(2)
-        print("Optimized Weights: ", w)
+        weight_df = pd.DataFrame(w).T
+        weight_df["new_index"] = rng_start
+        print(weight_df.T)
+
+
         next_i,next_b = next_month(i)
         y_next = Z[next_i:next_b]
         #Convert the returns and weightings to numpy.
@@ -152,7 +163,7 @@ for i in rng_start:
         portfolio_price = pd.DataFrame(myret, index = y_next.index)
         asset_pr = pd.concat([asset_pr, portfolio_price], axis = 0)
 
-
+print(weighted_df)
 ############################################################
 # Portfolio returns
 ############################################################
