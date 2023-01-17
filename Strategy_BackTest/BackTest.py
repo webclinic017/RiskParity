@@ -7,6 +7,7 @@ import warnings
 import riskfolio as rp
 import requests
 import matplotlib as plt
+import qgrid
 import plotly.graph_objects as go
 from calendar import monthrange
 from dateutil.relativedelta import relativedelta
@@ -165,6 +166,8 @@ for i in rng_start:
         asset_pr = pd.concat([asset_pr, portfolio_price], axis = 0)
 
 print(wght)
+qgrid_widget = qgrid.show_grid(wght)
+qgrid_widget
 ############################################################
 # Portfolio returns
 ############################################################
