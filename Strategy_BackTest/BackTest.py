@@ -85,7 +85,8 @@ def optimize_risk_parity(Y, Ycov):
         return -np.sum(w * Y.mean())
     # Define the optimization constraints
     cons = [{'type': 'eq', 'fun': lambda w: np.sum(w) - 1},
-            {'type': 'ineq', 'fun': lambda w: np.sum(risk_contribution(w)) - (1/n)}]
+            {'type': 'ineq', 'fun': lambda w: np.sum(risk_contribution(w)) - (1/n)},
+            {'type': 'ineq', 'fun': lambda w: np.sum(w[:3] > 0.01) -3}]
     bounds = [(0, 1) for i in range(n)]
     # Call the optimization solver
     res = minimize(objective, np.ones(n)/n, constraints=cons, bounds=bounds, method='SLSQP',
