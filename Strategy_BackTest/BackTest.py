@@ -16,7 +16,7 @@ from scipy.optimize import minimize
 warnings.filterwarnings("ignore")
 
 # Date range
-Start = '2020-05-01'
+Start = '2018-05-01'
 End = '2022-06-30'
 start = Start
 end = End
@@ -89,7 +89,7 @@ def optimize_risk_parity(Y, Ycov):
     bounds = [(0, 1) for i in range(n)]
     # Call the optimization solver
     res = minimize(objective, np.ones(n)/n, constraints=cons, bounds=bounds, method='SLSQP',
-                   options={'disp': False, 'eps': 1e-8})
+                   options={'disp': False, 'eps': 1e-12})
     return res.x
 
 # Call the optimize function
@@ -149,7 +149,7 @@ for i in rng_start:
         Y = ret[i:b]
         Ycov = Y.cov()
         optimized_weights = optimize_risk_parity(Y, Ycov)
-        w = optimized_weights.round(2)
+        w = optimized_weights.round(6)
 
         next_i,next_b = next_month(i)
         y_next = Z[next_i:next_b]
@@ -165,9 +165,13 @@ for i in rng_start:
         portfolio_price = pd.DataFrame(myret, index = y_next.index)
         asset_pr = pd.concat([asset_pr, portfolio_price], axis = 0)
 
-print(wght)
-qgrid_widget = qgrid.show_grid(wght)
-qgrid_widget
+
+wght.drop(columns=['Date'], axis = 1, inplace = True)
+wght.drop(wght.columns[wght.sum() == 0], axis=1, inplace=True)
+
+print(wght.to_string())
+#qgrid_widget = qgrid.show_grid(wght)
+#qgrid_widget
 ############################################################
 # Portfolio returns
 ############################################################
