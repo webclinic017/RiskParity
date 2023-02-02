@@ -189,6 +189,12 @@ SPY = SPY/SPY.iloc[0]*10000
 ############################################################
 # Plot
 ############################################################
-cumret.plot(label = 'Portfolio Returns')
-SPY.plot(label='SPY')
+fig, ax = plt.subplots()
+cumret.plot(ax=ax, label='Portfolio Returns')
+SPY.plot(ax=ax, label='SPY')
 
+# Set the x-axis to show monthly ticks
+ax.xaxis.set_major_locator(plt.MaxNLocator(12))
+
+plt.legend()
+plt.show()
