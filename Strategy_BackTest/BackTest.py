@@ -18,6 +18,8 @@ warnings.filterwarnings("ignore")
 # Date range
 Start = '2018-05-01'
 End = '2022-06-30'
+counter = 8
+
 start = Start
 end = End
 
@@ -74,7 +76,7 @@ prices = new_df
 # Calculate assets returns
 ############################################################
 
-def optimize_risk_parity(Y, Ycov):
+def optimize_risk_parity(Y, Ycov, counter):
     n = Y.shape[1]
     # Define the risk contribution as a constraint
     def risk_contribution(w):
@@ -86,17 +88,13 @@ def optimize_risk_parity(Y, Ycov):
     # Define the optimization constraints
     cons = [{'type': 'eq', 'fun': lambda w: np.sum(w) - 1},
             {'type': 'ineq', 'fun': lambda w: np.sum(risk_contribution(w)) - (1/n)},
-            {'type': 'ineq', 'fun': lambda w: np.sum(w[:3] > 0.01) -3}]
+            {'type': 'ineq', 'fun': lambda w: np.sum(w[:counter] > 0.05) -counter},
+            {'type': 'ineq', 'fun': lambda w: np.amax(w) - 0.8}]
     bounds = [(0, 1) for i in range(n)]
     # Call the optimization solver
     res = minimize(objective, np.ones(n)/n, constraints=cons, bounds=bounds, method='SLSQP',
                    options={'disp': False, 'eps': 1e-12})
     return res.x
-
-# Call the optimize function
-
-
-#pd.options.display.float_format = '{:.4%}'.format
 
 data = prices
 
@@ -149,7 +147,7 @@ for i in rng_start:
         Z = ret
         Y = ret[i:b]
         Ycov = Y.cov()
-        optimized_weights = optimize_risk_parity(Y, Ycov)
+        optimized_weights = optimize_risk_parity(Y, Ycov, counter)
         w = optimized_weights.round(6)
 
         next_i,next_b = next_month(i)
