@@ -6,7 +6,7 @@ import numpy as np
 import warnings
 import riskfolio as rp
 import requests
-import matplotlib as plt
+import matplotlib.pyplot as plt
 import qgrid
 import plotly.graph_objects as go
 from calendar import monthrange
@@ -16,7 +16,7 @@ from scipy.optimize import minimize
 warnings.filterwarnings("ignore")
 
 # Date range
-Start = '2018-05-01'
+Start = '2010-05-01'
 End = '2023-01-31'
 counter = 8
 
