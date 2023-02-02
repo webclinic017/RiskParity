@@ -147,14 +147,13 @@ wght = pd.DataFrame([])
 for i in rng_start:
     rng_end = pd.date_range(i, periods=1, freq='M')
     for b in rng_end:
-        Z = ret
         Y = ret[i:b]
         Ycov = Y.cov()
         optimized_weights = optimize_risk_parity(Y, Ycov, counter, i)
         w = optimized_weights.round(6)
 
         next_i,next_b = next_month(i)
-        y_next = Z[next_i:next_b]
+        y_next = ret[next_i:next_b]
         weight_printer = pd.DataFrame(w).T
         weight_printer.columns = Y.columns.T
         wgt = pd.concat([weight_printer.T, pd.DataFrame(rng_end, index={"Date"})]).T
@@ -164,8 +163,6 @@ for i in rng_start:
         myreturns = np.dot(w, y_next.T)
         myret = pd.DataFrame(myreturns.T, index = y_next.index)
         x = pd.concat([x, myret], axis = 0)
-        portfolio_price = pd.DataFrame(myret, index = y_next.index)
-        asset_pr = pd.concat([asset_pr, portfolio_price], axis = 0)
 
 
 wght.drop(columns=['Date'], axis = 1, inplace = True)
