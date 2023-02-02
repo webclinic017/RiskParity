@@ -122,17 +122,15 @@ rms = ['MV']
 rng_start = pd.date_range(start, periods=months_between, freq='MS')
 ret = returns
 
-############################################################
-# Setting up empty DFs
-############################################################
-
 def next_month(i):
     next_i = i + pd.Timedelta(days=31)
     next_b = pd.date_range(start=next_i, periods=1, freq='M')
     next_b = next_b[0]
     return next_i,next_b
 
-#setting up the empty DFs
+############################################################
+# Setting up empty DFs
+############################################################
 
 weights = pd.DataFrame([])
 x = pd.DataFrame([])
