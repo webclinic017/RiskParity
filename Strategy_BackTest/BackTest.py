@@ -17,7 +17,7 @@ warnings.filterwarnings("ignore")
 
 # Date range
 Start = '2018-05-01'
-End = '2022-06-30'
+End = '2023-01-31'
 counter = 8
 
 start = Start
@@ -76,7 +76,7 @@ prices = new_df
 # Calculate assets returns
 ############################################################
 
-def optimize_risk_parity(Y, Ycov, counter):
+def optimize_risk_parity(Y, Ycov, counter, i):
     n = Y.shape[1]
     # Define the risk contribution as a constraint
     def risk_contribution(w):
@@ -94,6 +94,11 @@ def optimize_risk_parity(Y, Ycov, counter):
     # Call the optimization solver
     res = minimize(objective, np.ones(n)/n, constraints=cons, bounds=bounds, method='SLSQP',
                    options={'disp': False, 'eps': 1e-12})
+    if not all(c['fun'](res.x) >= 0 for c in cons):
+        print(f"constraints for {i} period are not holding:")
+        for c in cons:
+            if c['fun'](res.x) < 0:
+                print(f"Constraint {c} is not holding")
     return res.x
 
 data = prices
@@ -147,7 +152,7 @@ for i in rng_start:
         Z = ret
         Y = ret[i:b]
         Ycov = Y.cov()
-        optimized_weights = optimize_risk_parity(Y, Ycov, counter)
+        optimized_weights = optimize_risk_parity(Y, Ycov, counter, i)
         w = optimized_weights.round(6)
 
         next_i,next_b = next_month(i)
