@@ -16,9 +16,9 @@ from scipy.optimize import minimize
 warnings.filterwarnings("ignore")
 
 # Date range
-Start = '2010-05-01'
+Start = '2022-12-01'
 End = '2023-01-31'
-counter = 8
+counter = 3
 
 start = Start
 end = End
@@ -89,16 +89,15 @@ def optimize_risk_parity(Y, Ycov, counter, i):
     cons = [{'type': 'eq', 'fun': lambda w: np.sum(w) - 1},
             {'type': 'ineq', 'fun': lambda w: np.sum(risk_contribution(w)) - (1/n)},
             {'type': 'ineq', 'fun': lambda w: np.sum(w[:counter] > 0.05) -counter},
-            {'type': 'ineq', 'fun': lambda w: np.amax(w) - 0.8}]
+            {'type': 'ineq', 'fun': lambda w: np.amax(w) - 0.8},
+            {'type': 'ineq', 'fun': lambda w: 3 - np.sum(w > 0)},
+            ]
     bounds = [(0, 1) for i in range(n)]
     # Call the optimization solver
     res = minimize(objective, np.ones(n)/n, constraints=cons, bounds=bounds, method='SLSQP',
-                   options={'disp': False, 'eps': 1e-12})
-    if not all(c['fun'](res.x) >= 0 for c in cons):
-        print(f"constraints for {i} period are not holding:")
-        for c in cons:
-            if c['fun'](res.x) < 0:
-                print(f"Constraint {c} is not holding")
+                   options={'disp': False, 'eps': 1e-12, 'maxiter': 100000})
+    print(res.message)
+    print(res.success)
     return res.x
 
 data = prices
@@ -143,6 +142,7 @@ weighted_df = pd.DataFrame([])
 time_df = pd.DataFrame([])
 timed_df = pd.DataFrame([])
 wght = pd.DataFrame([])
+merged_df = pd.DataFrame([])
 
 for i in rng_start:
     rng_end = pd.date_range(i, periods=1, freq='M')
@@ -167,28 +167,47 @@ for i in rng_start:
 
 wght.drop(columns=['Date'], axis = 1, inplace = True)
 wght.drop(wght.columns[wght.sum() == 0], axis=1, inplace=True)
+print(wght)
 
-print(wght.to_string())
-#qgrid_widget = qgrid.show_grid(wght)
-#qgrid_widget
+############################################################
+# To normalize the charts to the same dfs.
+############################################################
+
+specific_year  = wght.index[0].year
+specific_month = wght.index[0].month
+specific_month_1  = wght.index[0].month - 1
+
 ############################################################
 # Portfolio returns
 ############################################################
-
+x.iloc[0,:] = 0
 cumret = (1 + x).cumprod() * 10000
-
-cumret.rename(columns={'0': 'Returns Total'}, inplace = True)
-
 cumret = pd.DataFrame(cumret)
+cumret.columns = ['Returns total']
+cumret.iloc[0,:] = 10000
 
 ############################################################
 # Spy returns
 ############################################################
+
 SPY = prices['SPY'].dropna()
+mask = (SPY.index.year == specific_year) & (SPY.index.month == specific_month)
+SPY.drop(SPY[mask].index, inplace=True)
+mask_2 = (SPY.index.year == specific_year) & (SPY.index.month == specific_month_1)
+SPY.drop(SPY[mask_2].index, inplace=True)
 SPY = SPY/SPY.iloc[0]*10000
+
+############################################################
+# Create 1 df
+############################################################
+
+merged_df = pd.merge(SPY, cumret, left_index=True, right_index=True, how='inner')
+print(merged_df)
+
 ############################################################
 # Plot
 ############################################################
+
 fig, ax = plt.subplots()
 cumret.plot(ax=ax, label='Portfolio Returns')
 SPY.plot(ax=ax, label='SPY')
@@ -197,4 +216,4 @@ SPY.plot(ax=ax, label='SPY')
 ax.xaxis.set_major_locator(plt.MaxNLocator(12))
 
 plt.legend()
-plt.show()
+#plt.show()
