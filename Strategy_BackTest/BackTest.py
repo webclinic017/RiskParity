@@ -17,7 +17,7 @@ warnings.filterwarnings("ignore")
 
 # Date range
 Start = '2020-01-01'
-End = '2020-06-28'
+End = '2022-06-28'
 counter = 4
 
 start = Start
@@ -257,7 +257,7 @@ cumret.plot(ax=ax, label='Portfolio Returns')
 SPY.plot(ax=ax, label='SPY')
 
 # Set the x-axis to show monthly ticks
-ax.xaxis.set_major_locator(plt.MaxNLocator(12))
+ax.xaxis.set_major_locator(plt.MaxNLocator(months_between))
 
 plt.legend()
 #plt.show()
