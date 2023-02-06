@@ -113,7 +113,7 @@ def monte_carlo(Y):
 
     for ind in range(num_ports): 
         # weights 
-        weights = np.array(np.random.random(4)) 
+        weights = np.array(np.random.random(len(Y.columns))) 
         weights = weights/np.sum(weights)  
         
         # save the weights
@@ -134,6 +134,9 @@ def monte_carlo(Y):
 ############################################################
 
 data = prices
+
+data.to_csv("df_yfinance.csv", index=False)
+data = pd.read_csv("df_yfinance.csv")
 
 returns = data.pct_change()
 
