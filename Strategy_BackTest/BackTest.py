@@ -16,9 +16,9 @@ from scipy.optimize import minimize
 warnings.filterwarnings("ignore")
 
 # Date range
-Start = '2022-12-01'
-End = '2023-01-31'
-counter = 3
+Start = '2020-01-01'
+End = '2020-02-28'
+counter = 4
 
 start = Start
 end = End
@@ -57,7 +57,6 @@ def excel_download():
 asset_classes, asset = excel_download()
 
 assets = asset
-print(assets)
 # Downloading data
 
 ################## Here, I need this to be in my backtesting loop, where start and end is called with each month.
@@ -68,7 +67,6 @@ for i in assets:
 
 new_df = pd.concat(df_list, axis=1)
 new_df.columns = assets
-print(new_df)
 
 prices = new_df
 
@@ -89,7 +87,6 @@ def optimize_risk_parity(Y, Ycov, counter, i):
     cons = [{'type': 'eq', 'fun': lambda w: np.sum(w) - 1},
             {'type': 'ineq', 'fun': lambda w: np.sum(risk_contribution(w)) - (1/n)},
             {'type': 'ineq', 'fun': lambda w: np.sum(w[:counter] > 0.05) -counter},
-            {'type': 'ineq', 'fun': lambda w: np.amax(w) - 0.8},
             {'type': 'ineq', 'fun': lambda w: 3 - np.sum(w > 0)},
             ]
     bounds = [(0, 1) for i in range(n)]
@@ -97,8 +94,41 @@ def optimize_risk_parity(Y, Ycov, counter, i):
     res = minimize(objective, np.ones(n)/n, constraints=cons, bounds=bounds, method='SLSQP',
                    options={'disp': False, 'eps': 1e-12, 'maxiter': 100000})
     print(res.message)
+
     print(res.success)
     return res.x
+
+############################################################
+# Monte carlo
+############################################################
+
+def monte_carlo(asset, Y):
+    log_return = np.log(Y/Y.shift(1))
+    
+    num_ports = 5000
+    all_weights = np.zeros((num_ports, len(Y.columns)))
+    ret_arr = np.zeros(num_ports)
+    vol_arr = np.zeros(num_ports)
+    sharpe_arr = np.zeros(num_ports)
+
+    for ind in range(num_ports): 
+        # weights 
+        weights = np.array(np.random.random(4)) 
+        weights = weights/np.sum(weights)  
+        
+        # save the weights
+        all_weights[ind,:] = weights
+        
+        # expected return 
+        ret_arr[ind] = np.sum((log_return.mean()*weights)*252)
+
+        # expected volatility 
+        vol_arr[ind] = np.sqrt(np.dot(weights.T,np.dot(log_return.cov()*252, weights)))
+
+        # Sharpe Ratio 
+        sharpe_arr[ind] = ret_arr[ind]/vol_arr[ind]
+    
+############################################################
 
 data = prices
 
@@ -131,40 +161,43 @@ def next_month(i):
 # Setting up empty DFs
 ############################################################
 
-weights = pd.DataFrame([])
-x = pd.DataFrame([])
-asset_pr = pd.DataFrame([])
-sum_returns = pd.DataFrame([])
-we_df = pd.DataFrame([])
-y_next = pd.DataFrame([])
-weight_df = pd.DataFrame([])
-weighted_df = pd.DataFrame([])
-time_df = pd.DataFrame([])
-timed_df = pd.DataFrame([])
-wght = pd.DataFrame([])
 merged_df = pd.DataFrame([])
 
-for i in rng_start:
-    rng_end = pd.date_range(i, periods=1, freq='M')
-    for b in rng_end:
-        Y = ret[i:b]
-        Ycov = Y.cov()
-        optimized_weights = optimize_risk_parity(Y, Ycov, counter, i)
-        w = optimized_weights.round(6)
+############################################################
+# Backtesting
+############################################################
+def backtest(rng_start, ret):
+    wght = pd.DataFrame([])
+    x = pd.DataFrame([])
+    y_next = pd.DataFrame([])
 
-        next_i,next_b = next_month(i)
-        y_next = ret[next_i:next_b]
-        weight_printer = pd.DataFrame(w).T
-        weight_printer.columns = Y.columns.T
-        wgt = pd.concat([weight_printer.T, pd.DataFrame(rng_end, index={"Date"})]).T
-        wgt = wgt.set_index(wgt["Date"])
-        wght = pd.concat([wght, wgt], axis = 0)
-        #Convert the returns and weightings to numpy.
-        myreturns = np.dot(w, y_next.T)
-        myret = pd.DataFrame(myreturns.T, index = y_next.index)
-        x = pd.concat([x, myret], axis = 0)
+    for i in rng_start:
+        rng_end = pd.date_range(i, periods=1, freq='M')
+        for b in rng_end:
+            Y = ret[i:b]
+            Ycov = Y.cov()
+            #optimized_weights = optimize_risk_parity(Y, Ycov, counter, i)
+            #w = optimized_weights.round(6)
+
+            w = monte_carlo(asset, Y)
 
 
+            next_i,next_b = next_month(i)
+            y_next = ret[next_i:next_b]
+            weight_printer = pd.DataFrame(w).T
+            weight_printer.columns = Y.columns.T
+            wgt = pd.concat([weight_printer.T, pd.DataFrame(rng_end, index={"Date"})]).T
+            wgt = wgt.set_index(wgt["Date"])
+            wght = pd.concat([wght, wgt], axis = 0)
+            #Convert the returns and weightings to numpy.
+            myreturns = np.dot(w, y_next.T)
+            myret = pd.DataFrame(myreturns.T, index = y_next.index)
+            x = pd.concat([x, myret], axis = 0)
+    return wght, x
+
+
+
+wght, x = backtest(rng_start, ret)
 wght.drop(columns=['Date'], axis = 1, inplace = True)
 wght.drop(wght.columns[wght.sum() == 0], axis=1, inplace=True)
 print(wght)
