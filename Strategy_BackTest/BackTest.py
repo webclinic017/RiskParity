@@ -17,7 +17,7 @@ warnings.filterwarnings("ignore")
 
 # Date range
 Start = '2020-01-01'
-End = '2020-02-28'
+End = '2020-06-28'
 counter = 4
 
 start = Start
@@ -92,7 +92,7 @@ def optimize_risk_parity(Y, Ycov, counter, i):
     bounds = [(0, 1) for i in range(n)]
     # Call the optimization solver
     res = minimize(objective, np.ones(n)/n, constraints=cons, bounds=bounds, method='SLSQP',
-                   options={'disp': False, 'eps': 1e-12, 'maxiter': 100000})
+                   options={'disp': False, 'eps': 1e-12, 'maxiter': 10000})
     print(res.message)
 
     print(res.success)
@@ -102,10 +102,10 @@ def optimize_risk_parity(Y, Ycov, counter, i):
 # Monte carlo
 ############################################################
 
-def monte_carlo(asset, Y):
+def monte_carlo(Y):
     log_return = np.log(Y/Y.shift(1))
-    
-    num_ports = 5000
+    sample = Y.shape[0]
+    num_ports = 10000
     all_weights = np.zeros((num_ports, len(Y.columns)))
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
@@ -120,14 +120,17 @@ def monte_carlo(asset, Y):
         all_weights[ind,:] = weights
         
         # expected return 
-        ret_arr[ind] = np.sum((log_return.mean()*weights)*252)
+        ret_arr[ind] = np.sum((log_return.mean()*weights)*sample)
 
         # expected volatility 
-        vol_arr[ind] = np.sqrt(np.dot(weights.T,np.dot(log_return.cov()*252, weights)))
+        vol_arr[ind] = np.sqrt(np.dot(weights.T,np.dot(log_return.cov()*sample, weights)))
 
         # Sharpe Ratio 
         sharpe_arr[ind] = ret_arr[ind]/vol_arr[ind]
-    
+
+    max_sh = sharpe_arr.argmax()
+    return all_weights[max_sh,:]
+
 ############################################################
 
 data = prices
@@ -175,26 +178,25 @@ def backtest(rng_start, ret):
         rng_end = pd.date_range(i, periods=1, freq='M')
         for b in rng_end:
             Y = ret[i:b]
-            Ycov = Y.cov()
+            #Ycov = Y.cov()
             #optimized_weights = optimize_risk_parity(Y, Ycov, counter, i)
             #w = optimized_weights.round(6)
-
-            w = monte_carlo(asset, Y)
-
-
-            next_i,next_b = next_month(i)
-            y_next = ret[next_i:next_b]
-            weight_printer = pd.DataFrame(w).T
-            weight_printer.columns = Y.columns.T
-            wgt = pd.concat([weight_printer.T, pd.DataFrame(rng_end, index={"Date"})]).T
-            wgt = wgt.set_index(wgt["Date"])
-            wght = pd.concat([wght, wgt], axis = 0)
-            #Convert the returns and weightings to numpy.
-            myreturns = np.dot(w, y_next.T)
-            myret = pd.DataFrame(myreturns.T, index = y_next.index)
-            x = pd.concat([x, myret], axis = 0)
+            if rng_start[-1] == i:
+                print("last month")
+            else:
+                w = monte_carlo(Y)
+                next_i,next_b = next_month(i)
+                y_next = ret[next_i:next_b]
+                weight_printer = pd.DataFrame(w).T
+                weight_printer.columns = Y.columns.T
+                wgt = pd.concat([weight_printer.T, pd.DataFrame(rng_end, index={"Date"})]).T
+                wgt = wgt.set_index(wgt["Date"])
+                wght = pd.concat([wght, wgt], axis = 0)
+                #Convert the returns and weightings to numpy.
+                myreturns = np.dot(w, y_next.T)
+                myret = pd.DataFrame(myreturns.T, index = y_next.index)
+                x = pd.concat([x, myret], axis = 0)
     return wght, x
-
 
 
 wght, x = backtest(rng_start, ret)
@@ -203,40 +205,49 @@ wght.drop(wght.columns[wght.sum() == 0], axis=1, inplace=True)
 print(wght)
 
 ############################################################
+# Portfolio returns
+############################################################
+#x.iloc[0,:] = 0
+cumret = (1 + x).cumprod() * 10000
+cumret = pd.DataFrame(cumret)
+cumret.columns = ['Returns total']
+#cumret.iloc[0,:] = 10000
+
+
+############################################################
 # To normalize the charts to the same dfs.
 ############################################################
 
 specific_year  = wght.index[0].year
 specific_month = wght.index[0].month
-specific_month_1  = wght.index[0].month - 1
-
-############################################################
-# Portfolio returns
-############################################################
-x.iloc[0,:] = 0
-cumret = (1 + x).cumprod() * 10000
-cumret = pd.DataFrame(cumret)
-cumret.columns = ['Returns total']
-cumret.iloc[0,:] = 10000
-
+if wght.index[0].month - 1 == 0:
+    specific_month_1  = 12
+else:
+    specific_month_1 = wght.index[0].month - 1
+print(specific_month_1)
 ############################################################
 # Spy returns
 ############################################################
 
-SPY = prices['SPY'].dropna()
-mask = (SPY.index.year == specific_year) & (SPY.index.month == specific_month)
-SPY.drop(SPY[mask].index, inplace=True)
-mask_2 = (SPY.index.year == specific_year) & (SPY.index.month == specific_month_1)
-SPY.drop(SPY[mask_2].index, inplace=True)
-SPY = SPY/SPY.iloc[0]*10000
+def SPY_ret(prices, specific_month, specific_month_1):
+    SPY = prices['SPY'].dropna()
+    mask = (SPY.index.year == specific_year) & (SPY.index.month == specific_month)
+    SPY.drop(SPY[mask].index, inplace=True)
+    mask_2 = (SPY.index.year == specific_year) & (SPY.index.month == specific_month_1)
+    SPY.drop(SPY[mask_2].index, inplace=True)
+    SPY = SPY/SPY.iloc[0]
+    SPY.drop(SPY.index[0], inplace=True)
+    #SPY.iloc[0,:] = 0
+    return SPY*10000
 
 ############################################################
 # Create 1 df
 ############################################################
 
+SPY = SPY_ret(prices, specific_month, specific_month_1)
+
 merged_df = pd.merge(SPY, cumret, left_index=True, right_index=True, how='inner')
 print(merged_df)
-
 ############################################################
 # Plot
 ############################################################
