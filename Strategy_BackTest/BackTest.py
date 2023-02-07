@@ -16,8 +16,8 @@ from scipy.optimize import minimize
 warnings.filterwarnings("ignore")
 
 # Date range
-Start = '2022-05-01'
-End = '2022-06-28'
+Start = '2021-05-01'
+End = '2021-06-28'
 counter = 4
 
 start = Start
@@ -98,7 +98,7 @@ def optimize_risk_parity(Y, Ycov, counter, i):
 def monte_carlo(Y):
     log_return = np.log(Y/Y.shift(1))
     sample = Y.shape[0]
-    num_ports = 10000
+    num_ports = 50000
     all_weights = np.zeros((num_ports, len(Y.columns)))
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
@@ -121,7 +121,6 @@ def monte_carlo(Y):
         sharpe_arr[ind] = ret_arr[ind]/vol_arr[ind]
     max_sh = sharpe_arr.argmax()
     plot_frontier(vol_arr,ret_arr,sharpe_arr)
-    print("Max Sharpe:", max(sharpe_arr))
     return all_weights[max_sh,:]
 
 ############################################################
@@ -130,8 +129,17 @@ def plot_frontier(vol_arr,ret_arr,sharpe_arr):
     plt.figure(figsize=(12,8))
     plt.scatter(vol_arr,ret_arr,c=sharpe_arr,cmap='plasma')
     plt.colorbar(label='Sharpe Ratio')
+    max_sr_ret = ret_arr[sharpe_arr.argmax()]
+    max_sr_vol = vol_arr[sharpe_arr.argmax()]
+    max_sr_sr  = sharpe_arr[sharpe_arr.argmax()]
+    print("Max values", max_sr_ret,max_sr_vol, max_sr_sr, "Max possible Sharpe:", max(sharpe_arr))
+    # plot the dataplt.figure(figsize=(12,8))
     plt.xlabel('Volatility')
     plt.ylabel('Return')
+
+    # add a red dot for max_sr_vol & max_sr_ret
+    plt.scatter(max_sr_vol, max_sr_ret, c='red', s=50, edgecolors='black')
+    plt.scatter(max_sr_sr, max(vol_arr), c='green', s=50, edgecolors='black')
 
 ############################################################
 
@@ -164,6 +172,18 @@ def next_month(i):
 merged_df = pd.DataFrame([])
 
 ############################################################
+# Calculate sharpe for next month
+############################################################
+
+def next_sharpe(weights, log_return):
+    sample = log_return.shape[0]
+    ret_arr = np.sum((log_return.mean()*weights)*sample)
+    # expected volatility 
+    vol_arr = np.sqrt(np.dot(weights.T,np.dot(log_return.cov()*sample, weights)))
+    sharpe_arr = ret_arr/vol_arr
+    print(sharpe_arr)
+
+############################################################
 # Backtesting
 ############################################################
 def backtest(rng_start, ret, ret_pct):
@@ -184,6 +204,9 @@ def backtest(rng_start, ret, ret_pct):
                 w = monte_carlo(Y)
                 next_i,next_b = next_month(i)
                 y_next = ret_pct[next_i:next_b]
+
+                next_sharpe(w, y_next)
+
                 weight_printer = pd.DataFrame(w).T
                 weight_printer.columns = Y.columns.T
                 wgt = pd.concat([weight_printer.T, pd.DataFrame(rng_end, index={"Date"})]).T
