@@ -16,7 +16,7 @@ from scipy.optimize import minimize
 warnings.filterwarnings("ignore")
 
 # Date range
-Start = '2020-01-01'
+Start = '2022-05-01'
 End = '2022-06-28'
 counter = 4
 
@@ -54,22 +54,15 @@ def excel_download():
     asset = [x for x in asset if str(x) != 'nan']
     return asset_classes, asset
 
-asset_classes, asset = excel_download()
-
-assets = asset
-
-# Downloading data
-
-################## Here, I need this to be in my backtesting loop, where start and end is called with each month.
-df_list = []
-for i in assets:
-    asset_2 = yf.download(i, start=start, end=end)['Adj Close']
-    df_list.append(pd.DataFrame(asset_2))
-
-new_df = pd.concat(df_list, axis=1)
-new_df.columns = assets
-
-prices = new_df
+def datamanagement_1():
+    asset_classes, asset = excel_download()
+    df_list = []
+    for i in asset:
+        asset_2 = yf.download(i, start=start, end=end)['Adj Close']
+        df_list.append(pd.DataFrame(asset_2))
+    prices = pd.concat(df_list, axis=1)
+    prices.columns = asset
+    return prices, asset_classes, asset
 
 ############################################################
 # Calculate assets returns
@@ -111,12 +104,12 @@ def monte_carlo(Y):
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
     sharpe_arr = np.zeros(num_ports)
-
+    print(log_return)
     for ind in range(num_ports): 
         # weights 
         weights = np.array(np.random.random(len(Y.columns))) 
         weights = weights/np.sum(weights)  
-        
+       
         # save the weights
         all_weights[ind,:] = weights
         
@@ -128,35 +121,27 @@ def monte_carlo(Y):
 
         # Sharpe Ratio 
         sharpe_arr[ind] = ret_arr[ind]/vol_arr[ind]
-
     max_sh = sharpe_arr.argmax()
+    print("Max sharpe:", max_sh)
     return all_weights[max_sh,:]
 
 ############################################################
 
-data = prices
+def data_management_2(prices, asset_classes, asset):
+    returns = prices
+    valid_assets = asset_classes['Asset'].isin(asset)
+    asset_classes = asset_classes[valid_assets]
+    asset_classes = pd.DataFrame(asset_classes)
+    asset_classes = asset_classes.sort_values(by=['Asset'])
+    return returns
 
-#data.to_csv("df_yfinance.csv", index=False)
-#data = pd.read_csv("df_yfinance.csv")
-
-returns = data.pct_change()
-
-valid_assets = asset_classes['Asset'].isin(asset)
-
-asset_classes = asset_classes[valid_assets]
-
-asset_classes = pd.DataFrame(asset_classes)
-asset_classes = asset_classes.sort_values(by=['Asset'])
 
 ############################################################
 # Building a loop that estimate optimal portfolios on
 # rebalancing dates
 ############################################################
 
-rms = ['MV']
-
 rng_start = pd.date_range(start, periods=months_between, freq='MS')
-ret = returns
 
 def next_month(i):
     next_i = i + pd.Timedelta(days=31)
@@ -202,7 +187,12 @@ def backtest(rng_start, ret):
                 x = pd.concat([x, myret], axis = 0)
     return wght, x
 
+############################################################
+# Calling my functions
+############################################################
 
+prices, asset_classes, asset = datamanagement_1()
+ret = data_management_2(prices, asset_classes, asset)
 wght, x = backtest(rng_start, ret)
 wght.drop(columns=['Date'], axis = 1, inplace = True)
 wght.drop(wght.columns[wght.sum() == 0], axis=1, inplace=True)
@@ -211,33 +201,40 @@ print(wght)
 ############################################################
 # Portfolio returns
 ############################################################
-#x.iloc[0,:] = 0
-cumret = (1 + x).cumprod() * 10000
-cumret = pd.DataFrame(cumret)
-cumret.columns = ['Returns total']
-#cumret.iloc[0,:] = 10000
 
+def portfolio_returns(x):
+    cumret = (1 + x).cumprod() * 10000
+    cumret = pd.DataFrame(cumret)
+    cumret.columns = ['Returns total']
+    return cumret
 
 ############################################################
 # To normalize the charts to the same dfs.
 ############################################################
+class YearNormalize:
+    def __init__(self, wght):
+        self.wght = wght
+        self.specific_month_1, self.specific_year, self.specific_month = self.year_normalize()
 
-specific_year  = wght.index[0].year
-specific_month = wght.index[0].month
-if wght.index[0].month - 1 == 0:
-    specific_month_1  = 12
-else:
-    specific_month_1 = wght.index[0].month - 1
-print(specific_month_1)
+    def year_normalize(self):
+        specific_year  = self.wght.index[0].year
+        specific_month = self.wght.index[0].month
+        if self.wght.index[0].month - 1 == 0:
+            specific_month_1  = 12
+        else:
+            specific_month_1 = self.wght.index[0].month - 1
+        specific_month_1 = specific_month_1
+        return specific_year, specific_month, specific_month_1
+
 ############################################################
 # Spy returns
 ############################################################
 
-def SPY_ret(prices, specific_month, specific_month_1):
+def SPY_ret(prices):
     SPY = prices['SPY'].dropna()
-    mask = (SPY.index.year == specific_year) & (SPY.index.month == specific_month)
+    mask = (SPY.index.year == YearNormalize(wght).specific_year) & (SPY.index.month == YearNormalize(wght).specific_month)
     SPY.drop(SPY[mask].index, inplace=True)
-    mask_2 = (SPY.index.year == specific_year) & (SPY.index.month == specific_month_1)
+    mask_2 = (SPY.index.year == YearNormalize(wght).specific_year) & (SPY.index.month == YearNormalize(wght).specific_month_1)
     SPY.drop(SPY[mask_2].index, inplace=True)
     SPY = SPY/SPY.iloc[0]
     SPY.drop(SPY.index[0], inplace=True)
@@ -248,10 +245,10 @@ def SPY_ret(prices, specific_month, specific_month_1):
 # Create 1 df
 ############################################################
 
-SPY = SPY_ret(prices, specific_month, specific_month_1)
+SPY = SPY_ret(prices)
+cumret = portfolio_returns(x)
 
 merged_df = pd.merge(SPY, cumret, left_index=True, right_index=True, how='inner')
-print(merged_df)
 ############################################################
 # Plot
 ############################################################
