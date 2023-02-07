@@ -16,7 +16,7 @@ from scipy.optimize import minimize
 warnings.filterwarnings("ignore")
 
 # Date range
-Start = '2021-05-01'
+Start = '2021-01-01'
 End = '2021-06-28'
 counter = 4
 
@@ -120,7 +120,7 @@ def monte_carlo(Y):
         # Sharpe Ratio 
         sharpe_arr[ind] = ret_arr[ind]/vol_arr[ind]
     max_sh = sharpe_arr.argmax()
-    plot_frontier(vol_arr,ret_arr,sharpe_arr)
+    #plot_frontier(vol_arr,ret_arr,sharpe_arr)
     return all_weights[max_sh,:]
 
 ############################################################
@@ -139,7 +139,7 @@ def plot_frontier(vol_arr,ret_arr,sharpe_arr):
 
     # add a red dot for max_sr_vol & max_sr_ret
     plt.scatter(max_sr_vol, max_sr_ret, c='red', s=50, edgecolors='black')
-    plt.scatter(max_sr_sr, max(vol_arr), c='green', s=50, edgecolors='black')
+    #plt.scatter(max_sr_sr, max(vol_arr), c='green', s=50, edgecolors='black')
 
 ############################################################
 
@@ -177,11 +177,11 @@ merged_df = pd.DataFrame([])
 
 def next_sharpe(weights, log_return):
     sample = log_return.shape[0]
-    ret_arr = np.sum((log_return.mean()*weights)*sample)
+    ret_arr2 = np.sum((log_return.mean()*weights)*sample)
     # expected volatility 
-    vol_arr = np.sqrt(np.dot(weights.T,np.dot(log_return.cov()*sample, weights)))
-    sharpe_arr = ret_arr/vol_arr
-    print(sharpe_arr)
+    vol_arr2 = np.sqrt(np.dot(weights.T,np.dot(log_return.cov()*sample, weights)))
+    sharpe_arr2 = ret_arr2/vol_arr2
+    print("Portfolio Sharpe:", sharpe_arr2)
 
 ############################################################
 # Backtesting
@@ -209,6 +209,7 @@ def backtest(rng_start, ret, ret_pct):
 
                 weight_printer = pd.DataFrame(w).T
                 weight_printer.columns = Y.columns.T
+                print(weight_printer)
                 wgt = pd.concat([weight_printer.T, pd.DataFrame(rng_end, index={"Date"})]).T
                 wgt = wgt.set_index(wgt["Date"])
                 wght = pd.concat([wght, wgt], axis = 0)
