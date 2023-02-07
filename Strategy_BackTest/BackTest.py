@@ -28,7 +28,6 @@ date2 = datetime.datetime.strptime(End, "%Y-%m-%d")
 diff = relativedelta(date2, date1)
 
 months_between = (diff.years)*12 + diff.months + 1
-print(months_between)
 # Tickers of assets
 
 Model='Classic' # Could be Classic (historical), BL (Black Litterman) or FM (Factor Model)
@@ -121,8 +120,18 @@ def monte_carlo(Y):
         # Sharpe Ratio 
         sharpe_arr[ind] = ret_arr[ind]/vol_arr[ind]
     max_sh = sharpe_arr.argmax()
-    print("Max sharpe:", max_sh)
+    plot_frontier(vol_arr,ret_arr,sharpe_arr)
+    print("Max Sharpe:", max(sharpe_arr))
     return all_weights[max_sh,:]
+
+############################################################
+
+def plot_frontier(vol_arr,ret_arr,sharpe_arr):
+    plt.figure(figsize=(12,8))
+    plt.scatter(vol_arr,ret_arr,c=sharpe_arr,cmap='plasma')
+    plt.colorbar(label='Sharpe Ratio')
+    plt.xlabel('Volatility')
+    plt.ylabel('Return')
 
 ############################################################
 
@@ -157,7 +166,7 @@ merged_df = pd.DataFrame([])
 ############################################################
 # Backtesting
 ############################################################
-def backtest(rng_start, ret):
+def backtest(rng_start, ret, ret_pct):
     wght = pd.DataFrame([])
     x = pd.DataFrame([])
     y_next = pd.DataFrame([])
@@ -174,7 +183,7 @@ def backtest(rng_start, ret):
             else:
                 w = monte_carlo(Y)
                 next_i,next_b = next_month(i)
-                y_next = ret[next_i:next_b]
+                y_next = ret_pct[next_i:next_b]
                 weight_printer = pd.DataFrame(w).T
                 weight_printer.columns = Y.columns.T
                 wgt = pd.concat([weight_printer.T, pd.DataFrame(rng_end, index={"Date"})]).T
@@ -192,10 +201,10 @@ def backtest(rng_start, ret):
 
 prices, asset_classes, asset = datamanagement_1()
 ret = data_management_2(prices, asset_classes, asset)
-wght, x = backtest(rng_start, ret)
+ret_pct = ret.pct_change()
+wght, x = backtest(rng_start, ret, ret_pct)
 wght.drop(columns=['Date'], axis = 1, inplace = True)
 wght.drop(wght.columns[wght.sum() == 0], axis=1, inplace=True)
-print(wght)
 
 ############################################################
 # Portfolio returns
@@ -205,7 +214,6 @@ def portfolio_returns(x):
     cumret = (1 + x).cumprod() * 10000
     cumret = pd.DataFrame(cumret)
     cumret.columns = ['Returns total']
-    print(cumret)
     return cumret
 
 ############################################################
@@ -255,8 +263,8 @@ print(merged_df)
 ############################################################
 
 fig, ax = plt.subplots()
-cumret.plot(ax=ax, label='Portfolio Returns')
-SPY.plot(ax=ax, label='SPY')
+merged_df['Returns total'].plot(ax=ax, label='Portfolio Returns')
+merged_df['SPY'].plot(ax=ax, label='SPY')
 
 # Set the x-axis to show monthly ticks
 ax.xaxis.set_major_locator(plt.MaxNLocator(months_between))
