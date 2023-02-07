@@ -104,7 +104,6 @@ def monte_carlo(Y):
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
     sharpe_arr = np.zeros(num_ports)
-    print(log_return)
     for ind in range(num_ports): 
         # weights 
         weights = np.array(np.random.random(len(Y.columns))) 
@@ -206,6 +205,7 @@ def portfolio_returns(x):
     cumret = (1 + x).cumprod() * 10000
     cumret = pd.DataFrame(cumret)
     cumret.columns = ['Returns total']
+    print(cumret)
     return cumret
 
 ############################################################
@@ -249,6 +249,7 @@ SPY = SPY_ret(prices)
 cumret = portfolio_returns(x)
 
 merged_df = pd.merge(SPY, cumret, left_index=True, right_index=True, how='inner')
+print(merged_df)
 ############################################################
 # Plot
 ############################################################
