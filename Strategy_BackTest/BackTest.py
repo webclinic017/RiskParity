@@ -16,8 +16,8 @@ from scipy.optimize import minimize
 warnings.filterwarnings("ignore")
 
 # Date range
-Start = '2021-01-01'
-End = '2021-06-28'
+Start = '2022-11-01'
+End = '2022-12-31'
 counter = 4
 
 start = Start
@@ -98,7 +98,7 @@ def optimize_risk_parity(Y, Ycov, counter, i):
 def monte_carlo(Y):
     log_return = np.log(Y/Y.shift(1))
     sample = Y.shape[0]
-    num_ports = 50000
+    num_ports = 10000
     all_weights = np.zeros((num_ports, len(Y.columns)))
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
@@ -219,14 +219,28 @@ def backtest(rng_start, ret, ret_pct):
                 x = pd.concat([x, myret], axis = 0)
     return wght, x
 
+def returns_functions():
+    print("need to sort this out")
+
 ############################################################
 # Calling my functions
 ############################################################
+
+def backtest_drop(wght):
+    weights = wght.sum(axis=0)
+    weights = weights.sort_values(ascending=False)
+    top_5_weights = weights.head(5)
+    wght_2 = ret[top_5_weights.index]
+    return wght_2
 
 prices, asset_classes, asset = datamanagement_1()
 ret = data_management_2(prices, asset_classes, asset)
 ret_pct = ret.pct_change()
 wght, x = backtest(rng_start, ret, ret_pct)
+wght_2 = backtest_drop(wght)
+wght = []
+x    = []
+wght, x = returns_functions(ret, ret_pct)
 wght.drop(columns=['Date'], axis = 1, inplace = True)
 wght.drop(wght.columns[wght.sum() == 0], axis=1, inplace=True)
 
