@@ -121,6 +121,12 @@ def monte_carlo(Y):
         sharpe_arr[ind] = ret_arr[ind]/vol_arr[ind]
     max_sh = sharpe_arr.argmax()
     #plot_frontier(vol_arr,ret_arr,sharpe_arr)
+
+    #To-do:
+    #enable short selling
+    #enable leverage
+
+
     return all_weights[max_sh,:]
 
 ############################################################
@@ -150,7 +156,6 @@ def data_management_2(prices, asset_classes, asset):
     asset_classes = pd.DataFrame(asset_classes)
     asset_classes = asset_classes.sort_values(by=['Asset'])
     return returns
-
 
 ############################################################
 # Building a loop that estimate optimal portfolios on
@@ -238,9 +243,9 @@ ret = data_management_2(prices, asset_classes, asset)
 ret_pct = ret.pct_change()
 wght, x = backtest(rng_start, ret, ret_pct)
 wght_2 = backtest_drop(wght)
-wght = []
-x    = []
-wght, x = returns_functions(ret, ret_pct)
+#wght = []
+#x    = []
+#wght, x = returns_functions(ret, ret_pct)
 wght.drop(columns=['Date'], axis = 1, inplace = True)
 wght.drop(wght.columns[wght.sum() == 0], axis=1, inplace=True)
 
