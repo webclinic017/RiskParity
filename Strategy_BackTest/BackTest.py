@@ -6,6 +6,7 @@ import numpy as np
 import warnings
 import riskfolio as rp
 import requests
+import seaborn as sns
 import matplotlib.pyplot as plt
 import qgrid
 import plotly.graph_objects as go
@@ -16,7 +17,7 @@ from scipy.optimize import minimize
 warnings.filterwarnings("ignore")
 
 # Date range
-Start = '2022-11-01'
+Start = '2022-08-01'
 End = '2022-12-31'
 counter = 4
 
@@ -26,6 +27,10 @@ end = End
 date1 = datetime.datetime.strptime(Start, "%Y-%m-%d")
 date2 = datetime.datetime.strptime(End, "%Y-%m-%d")
 diff = relativedelta(date2, date1)
+
+Start_bench = date1 + relativedelta(months=1)
+print(Start_bench)
+
 
 months_between = (diff.years)*12 + diff.months + 1
 # Tickers of assets
@@ -56,6 +61,7 @@ def excel_download():
 def datamanagement_1():
     asset_classes, asset = excel_download()
     df_list = []
+    asset = list(set(asset))
     for i in asset:
         asset_2 = yf.download(i, start=start, end=end)['Adj Close']
         df_list.append(pd.DataFrame(asset_2))
@@ -180,22 +186,22 @@ merged_df = pd.DataFrame([])
 # Calculate sharpe for next month
 ############################################################
 
-def next_sharpe(weights, log_return):
+def next_sharpe(weights, log_return, sharpe_list):
     sample = log_return.shape[0]
     ret_arr2 = np.sum((log_return.mean()*weights)*sample)
     # expected volatility 
     vol_arr2 = np.sqrt(np.dot(weights.T,np.dot(log_return.cov()*sample, weights)))
     sharpe_arr2 = ret_arr2/vol_arr2
-    print("Portfolio Sharpe:", sharpe_arr2)
+    return sharpe_arr2
 
 ############################################################
 # Backtesting
 ############################################################
-def backtest(rng_start, ret, ret_pct):
+def backtest(rng_start, ret, ret_pct, sharpe_list):
     wght = pd.DataFrame([])
     x = pd.DataFrame([])
     y_next = pd.DataFrame([])
-
+    merged_array = pd.DataFrame([])
     for i in rng_start:
         rng_end = pd.date_range(i, periods=1, freq='M')
         for b in rng_end:
@@ -210,22 +216,46 @@ def backtest(rng_start, ret, ret_pct):
                 next_i,next_b = next_month(i)
                 y_next = ret_pct[next_i:next_b]
 
-                next_sharpe(w, y_next)
+                sharpe_array = next_sharpe(w, y_next, sharpe_list)
 
+                #sharpe_df = pd.DataFrame(sharpe_array, columns=['Sharpe_Ratio'])
                 weight_printer = pd.DataFrame(w).T
                 weight_printer.columns = Y.columns.T
-                print(weight_printer)
                 wgt = pd.concat([weight_printer.T, pd.DataFrame(rng_end, index={"Date"})]).T
                 wgt = wgt.set_index(wgt["Date"])
                 wght = pd.concat([wght, wgt], axis = 0)
                 #Convert the returns and weightings to numpy.
                 myreturns = np.dot(w, y_next.T)
                 myret = pd.DataFrame(myreturns.T, index = y_next.index)
+                #Setting up my correlation matrices
+                merged_df = weight_printer
+                merged_df['Sharpe_ratio'] = sharpe_array
+                merged_df['Date'] = pd.DataFrame(rng_end, index={"Date"})
+                merged_df = merged_df.set_index(wgt["Date"])
+                merged_df = merged_df.drop('Date', axis = 1)
+                merged_array = pd.concat([merged_array, merged_df], axis = 0)
                 x = pd.concat([x, myret], axis = 0)
-    return wght, x
+    return wght, x, merged_array
 
 def returns_functions():
     print("need to sort this out")
+
+def sentiment_index():
+    print("this is for building my sentiment index")
+    #I need to build a sentiment index. 2021 was bull market for sure. For Jan 2022, I sold out so that is bear market.
+    #For 2023 I think its a sideways market with 4k ES price.x
+
+############################################################
+# Correlation matrix
+############################################################
+
+def correlation_matrix(sharpe_array):
+    corr_matrix = sharpe_array.corr()
+    corr_matrix = corr_matrix['Sharpe_ratio']
+    plt.figure(figsize=(6, 6))
+    sns.heatmap(corr_matrix.to_frame(), annot=True, cmap='coolwarm')
+    plt.title('Correlation Matrix')
+    plt.show()
 
 ############################################################
 # Calling my functions
@@ -238,16 +268,17 @@ def backtest_drop(wght):
     wght_2 = ret[top_5_weights.index]
     return wght_2
 
+
+sharpe_list = []
 prices, asset_classes, asset = datamanagement_1()
 ret = data_management_2(prices, asset_classes, asset)
 ret_pct = ret.pct_change()
-wght, x = backtest(rng_start, ret, ret_pct)
+wght, x, sharpe_array = backtest(rng_start, ret, ret_pct, sharpe_list)
+correlation_matrix(sharpe_array)
 wght_2 = backtest_drop(wght)
-#wght = []
-#x    = []
-#wght, x = returns_functions(ret, ret_pct)
 wght.drop(columns=['Date'], axis = 1, inplace = True)
 wght.drop(wght.columns[wght.sum() == 0], axis=1, inplace=True)
+
 
 ############################################################
 # Portfolio returns
@@ -281,6 +312,12 @@ class YearNormalize:
 # Spy returns
 ############################################################
 
+def SPY_ret_2(Start_bench, End):
+    SPY_2 = yf.download("SPY", start=Start_bench, end=End)['Adj Close']
+    SPY = SPY_2/SPY_2.iloc[0]
+    SPY = SPY*10000
+    return SPY
+
 def SPY_ret(prices):
     SPY = prices['SPY'].dropna()
     mask = (SPY.index.year == YearNormalize(wght).specific_year) & (SPY.index.month == YearNormalize(wght).specific_month)
@@ -288,6 +325,7 @@ def SPY_ret(prices):
     mask_2 = (SPY.index.year == YearNormalize(wght).specific_year) & (SPY.index.month == YearNormalize(wght).specific_month_1)
     SPY.drop(SPY[mask_2].index, inplace=True)
     SPY = SPY/SPY.iloc[0]
+    print(SPY)
     SPY.drop(SPY.index[0], inplace=True)
     #SPY.iloc[0,:] = 0
     return SPY*10000
@@ -296,18 +334,19 @@ def SPY_ret(prices):
 # Create 1 df
 ############################################################
 
-SPY = SPY_ret(prices)
+SPY = SPY_ret_2(Start_bench, End)
+SPY.columns = ['SPY']
+print(SPY)
 cumret = portfolio_returns(x)
 
 merged_df = pd.merge(SPY, cumret, left_index=True, right_index=True, how='inner')
-print(merged_df)
 ############################################################
 # Plot
 ############################################################
 
 fig, ax = plt.subplots()
 merged_df['Returns total'].plot(ax=ax, label='Portfolio Returns')
-merged_df['SPY'].plot(ax=ax, label='SPY')
+SPY.plot(ax=ax, label='SPY')
 
 # Set the x-axis to show monthly ticks
 ax.xaxis.set_major_locator(plt.MaxNLocator(months_between))
