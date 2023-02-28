@@ -17,7 +17,7 @@ from scipy.optimize import minimize
 warnings.filterwarnings("ignore")
 
 # Date range
-Start = '2022-08-01'
+Start = '2015-08-01'
 End = '2022-12-31'
 counter = 4
 
@@ -29,8 +29,6 @@ date2 = datetime.datetime.strptime(End, "%Y-%m-%d")
 diff = relativedelta(date2, date1)
 
 Start_bench = date1 + relativedelta(months=1)
-print(Start_bench)
-
 
 months_between = (diff.years)*12 + diff.months + 1
 # Tickers of assets
@@ -58,7 +56,7 @@ def excel_download():
     asset = [x for x in asset if str(x) != 'nan']
     return asset_classes, asset
 
-def datamanagement_1():
+def datamanagement_1(start, end):
     asset_classes, asset = excel_download()
     df_list = []
     asset = list(set(asset))
@@ -131,7 +129,6 @@ def monte_carlo(Y):
     #To-do:
     #enable short selling
     #enable leverage
-
 
     return all_weights[max_sh,:]
 
@@ -270,11 +267,11 @@ def backtest_drop(wght):
 
 
 sharpe_list = []
-prices, asset_classes, asset = datamanagement_1()
+prices, asset_classes, asset = datamanagement_1(start, end)
 ret = data_management_2(prices, asset_classes, asset)
 ret_pct = ret.pct_change()
 wght, x, sharpe_array = backtest(rng_start, ret, ret_pct, sharpe_list)
-correlation_matrix(sharpe_array)
+#correlation_matrix(sharpe_array)
 wght_2 = backtest_drop(wght)
 wght.drop(columns=['Date'], axis = 1, inplace = True)
 wght.drop(wght.columns[wght.sum() == 0], axis=1, inplace=True)
@@ -336,7 +333,6 @@ def SPY_ret(prices):
 
 SPY = SPY_ret_2(Start_bench, End)
 SPY.columns = ['SPY']
-print(SPY)
 cumret = portfolio_returns(x)
 
 merged_df = pd.merge(SPY, cumret, left_index=True, right_index=True, how='inner')
@@ -349,7 +345,7 @@ merged_df['Returns total'].plot(ax=ax, label='Portfolio Returns')
 SPY.plot(ax=ax, label='SPY')
 
 # Set the x-axis to show monthly ticks
-ax.xaxis.set_major_locator(plt.MaxNLocator(months_between))
+ax.xaxis.set_major_locator(plt.MaxNLocator(months_between/4))
 
 plt.legend()
 #plt.show()
