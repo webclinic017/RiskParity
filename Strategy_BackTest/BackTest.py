@@ -99,7 +99,8 @@ def optimize_risk_parity(Y, Ycov, counter, i):
 # Monte carlo
 ############################################################
 
-def monte_carlo(Y):
+def monte_carlo(Y, df_split_monthly):
+    # Somewhere here I need to set the weights of an asset = 0 if it is not trending.
     log_return = np.log(Y/Y.shift(1))
     sample = Y.shape[0]
     num_ports = 10000
@@ -208,8 +209,7 @@ def backtest(rng_start, ret, ret_pct, sharpe_list, df_monthly):
             Y = ret[i:b]
             # If 
             #print("B equals:", b)
-            print(df_monthly[b:b])
-
+            df_split_monthly = df_monthly[b:b]
             # I need to set weight = 0 if a column in df_monthly < 0.8, for example (I could run a monte carlo to get this parameter!!!)
 
             #Ycov = Y.cov()
@@ -218,7 +218,7 @@ def backtest(rng_start, ret, ret_pct, sharpe_list, df_monthly):
             if rng_start[-1] == i:
                 print("last month")
             else:
-                w = monte_carlo(Y)
+                w = monte_carlo(Y, df_split_monthly)
                 next_i,next_b = next_month(i)
                 y_next = ret_pct[next_i:next_b]
 
