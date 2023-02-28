@@ -1,6 +1,6 @@
 #Start with a MA.
 import pandas as pd
-from datamanagement import *
+from Strategy_BackTest.datamanagement import *
 
 start = '2015-08-01'
 end = '2022-12-31'
