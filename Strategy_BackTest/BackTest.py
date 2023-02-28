@@ -13,16 +13,16 @@ import plotly.graph_objects as go
 from calendar import monthrange
 from dateutil.relativedelta import relativedelta
 from scipy.optimize import minimize
-
+from Trend_Following import df_monthly, ret, start, end
 warnings.filterwarnings("ignore")
+#from datamanagement import excel_download, datamanagement_1, data_management_2
 
 # Date range
-Start = '2015-08-01'
-End = '2022-12-31'
+
 counter = 4
 
-start = Start
-end = End
+Start = start
+End = end
 
 date1 = datetime.datetime.strptime(Start, "%Y-%m-%d")
 date2 = datetime.datetime.strptime(End, "%Y-%m-%d")
@@ -194,15 +194,24 @@ def next_sharpe(weights, log_return, sharpe_list):
 ############################################################
 # Backtesting
 ############################################################
-def backtest(rng_start, ret, ret_pct, sharpe_list):
+def backtest(rng_start, ret, ret_pct, sharpe_list, df_monthly):
     wght = pd.DataFrame([])
     x = pd.DataFrame([])
     y_next = pd.DataFrame([])
     merged_array = pd.DataFrame([])
+
+    # Need to set rng_start to the start of the sma df.
+
     for i in rng_start:
         rng_end = pd.date_range(i, periods=1, freq='M')
         for b in rng_end:
             Y = ret[i:b]
+            # If 
+            #print("B equals:", b)
+            print(df_monthly[b:b])
+
+            # I need to set weight = 0 if a column in df_monthly < 0.8, for example (I could run a monte carlo to get this parameter!!!)
+
             #Ycov = Y.cov()
             #optimized_weights = optimize_risk_parity(Y, Ycov, counter, i)
             #w = optimized_weights.round(6)
@@ -265,12 +274,11 @@ def backtest_drop(wght):
     wght_2 = ret[top_5_weights.index]
     return wght_2
 
-
 sharpe_list = []
-prices, asset_classes, asset = datamanagement_1(start, end)
-ret = data_management_2(prices, asset_classes, asset)
+#prices, asset_classes, asset = datamanagement_1(start, end)
+#ret = data_management_2(prices, asset_classes, asset)
 ret_pct = ret.pct_change()
-wght, x, sharpe_array = backtest(rng_start, ret, ret_pct, sharpe_list)
+wght, x, sharpe_array = backtest(rng_start, ret, ret_pct, sharpe_list, df_monthly)
 #correlation_matrix(sharpe_array)
 wght_2 = backtest_drop(wght)
 wght.drop(columns=['Date'], axis = 1, inplace = True)
