@@ -208,32 +208,27 @@ def backtest(rng_start, ret, ret_pct, df_monthly):
             else:
                 Y = ret[i:b]
                 Y_adjusted = asset_trimmer(b, df_monthly, Y)
-                if Y_adjusted.empty:
-                    print(Y_adjusted, " is empty")
-                else:
-                    
+                if not Y_adjusted.empty:
                     w = monte_carlo(Y_adjusted)
                     next_i,next_b = next_month(i)
                     y_next = ret_pct[next_i:next_b]
-                    Y_adjusted_next = asset_trimmer(next_b, df_monthly, y_next)
-                    portfolio_returns(w, Y_adjusted_next)
-                    #sharpe_df = pd.DataFrame(sharpe_array, columns=['Sharpe_Ratio']
-
-                #Calculate returns within the loop and return it
-
-
-    return wght, x, #merged_array
+                    print("Y_next_adjusted", Y_adjusted[next_i:next_b])
+                    print("y_next", y_next)
+                    Y_adjusted_next = asset_trimmer(b, df_monthly, y_next)
+                    portfolio_return = portfolio_returns(w, Y_adjusted_next)
+    return portfolio_return
 
 def asset_trimmer(b, df_monthly, Y):
         df_split_monthly = df_monthly[b:b]
-        print("df_monthly", df_split_monthly)
         cols_to_drop = [col for col in df_split_monthly.columns if df_split_monthly[col].max() < 0.3]
         Y = Y.drop(columns=cols_to_drop)
         return Y
 
 def portfolio_returns(w, Y_adjusted_next):
-    print(Y_adjusted_next)
-    print("need to short shit out")
+
+    df_daily_return = w.T*Y_adjusted_next
+    df_portfolio_return = pd.DataFrame(df_daily_return.sum(axis=1), columns=['portfolio_return'])
+    return df_portfolio_return
 
 def returns_functions():
     print("need to sort this out")
@@ -259,33 +254,12 @@ def correlation_matrix(sharpe_array):
 # Calling my functions
 ############################################################
 
-def backtest_drop(wght):
-    weights = wght.sum(axis=0)
-    weights = weights.sort_values(ascending=False)
-    top_5_weights = weights.head(5)
-    wght_2 = ret[top_5_weights.index]
-    return wght_2
-
 sharpe_list = []
 #prices, asset_classes, asset = datamanagement_1(start, end)
 #ret = data_management_2(prices, asset_classes, asset)
 ret_pct = ret.pct_change()
-wght, x, sharpe_array = backtest(rng_start, ret, ret_pct, df_monthly)
-#correlation_matrix(sharpe_array)
-wght_2 = backtest_drop(wght)
-wght.drop(columns=['Date'], axis = 1, inplace = True)
-wght.drop(wght.columns[wght.sum() == 0], axis=1, inplace=True)
-
-
-############################################################
-# Portfolio returns
-############################################################
-
-def portfolio_returns(x):
-    cumret = (1 + x).cumprod() * 10000
-    cumret = pd.DataFrame(cumret)
-    cumret.columns = ['Returns total']
-    return cumret
+portfolio_return = backtest(rng_start, ret, ret_pct, df_monthly)
+print(portfolio_return)
 
 ############################################################
 # To normalize the charts to the same dfs.
@@ -333,15 +307,14 @@ def SPY_ret(prices):
 
 SPY = SPY_ret_2(Start_bench, End)
 SPY.columns = ['SPY']
-cumret = portfolio_returns(x)
 
-merged_df = pd.merge(SPY, cumret, left_index=True, right_index=True, how='inner')
+merged_df = pd.merge(SPY, portfolio_return, left_index=True, right_index=True, how='inner')
 ############################################################
 # Plot
 ############################################################
 
 fig, ax = plt.subplots()
-merged_df['Returns total'].plot(ax=ax, label='Portfolio Returns')
+merged_df['portfolio_return'].plot(ax=ax, label='Portfolio Returns')
 SPY.plot(ax=ax, label='SPY')
 
 # Set the x-axis to show monthly ticks
