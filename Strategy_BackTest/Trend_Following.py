@@ -42,6 +42,7 @@ def dummy_sma(rolling_df, ret):
         dummy_df[asset_name] = (rolling_df[asset_name] < ret[asset_name]).astype(int)
         dummy_short_df[asset_name] = (rolling_df[asset_name] > ret[asset_name]).astype(int)
     df_monthly = dummy_df.resample('M').mean()
+    #dummy_short_df = dummy_short_df.resample('M').mean()
     print(dummy_short_df)
     return df_monthly
 
