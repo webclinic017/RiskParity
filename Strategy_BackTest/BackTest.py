@@ -250,7 +250,7 @@ class YearNormalize:
 new_date = portfolio_return_concat.index[0] - timedelta(days=1)
 new_row = pd.DataFrame({'portfolio_return': [0]}, index=[new_date])
 portfolio_return_concat = pd.concat([new_row, portfolio_return_concat]) 
-portfolio_return_concat = (1 + portfolio_return_concat['portfolio_return']) * 10000
+portfolio_return_concat = (1 + portfolio_return_concat['portfolio_return']).cumprod() * 10000
 portfolio_return_concat.to_frame()
 portfolio_return_concat = pd.DataFrame(pd.DataFrame(portfolio_return_concat))
 
@@ -267,10 +267,13 @@ SPY = pd.DataFrame(pd.DataFrame(SPY))
 merged_df = SPY.merge(portfolio_return_concat, left_index=True, right_index=True)
 merged_df.iloc[0, 0] = 0
 
-merged_df['Adj Close'] = (1 + merged_df['Adj Close']) * 10000
+merged_df['Adj Close'] = (1 + merged_df['Adj Close']).cumprod() * 10000
 
 merged_df = merged_df.rename(columns={'Adj Close': 'SPY_Return'})
-print(merged_df)
+
+#Something ain't right with something in the chart
+
+print(merged_df.to_string())
 
 
 merged_df.plot(y=['SPY_Return', 'portfolio_return'])
