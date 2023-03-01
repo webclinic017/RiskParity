@@ -195,8 +195,6 @@ def next_sharpe(weights, log_return, sharpe_list):
 # Backtesting
 ############################################################
 def backtest(rng_start, ret, ret_pct, df_monthly):
-    wght = pd.DataFrame([])
-    x = pd.DataFrame([])
     y_next = pd.DataFrame([])
     for i in rng_start:
         rng_end = pd.date_range(i, periods=1, freq='M')
@@ -223,9 +221,9 @@ def asset_trimmer(b, df_monthly, Y):
         return Y
 
 def portfolio_returns(w, Y_adjusted_next):
-
     df_daily_return = w.T*Y_adjusted_next
-    df_portfolio_return = pd.DataFrame(df_daily_return.sum(axis=1), columns=['portfolio_return'])
+    df_portfolio_return = pd.DataFrame(df_daily_return.sum(axis=1), columns=['portfolio_return'])\
+    
     return df_portfolio_return
 
 def returns_functions():
@@ -251,8 +249,10 @@ def correlation_matrix(sharpe_array):
 ############################################################
 # Calling my functions
 ############################################################
-
+print(df_monthly)
+print(ret.to_string())
 ret_pct = ret.pct_change()
+print(ret_pct.to_string())
 portfolio_return = backtest(rng_start, ret, ret_pct, df_monthly)
 
 ############################################################
@@ -295,19 +295,18 @@ Bench_start = portfolio_return.index.min()
 Bench_end   = portfolio_return.index.max()
 
 SPY = yf.download('SPY', start=Bench_start, Bench_end=end)['Adj Close'].pct_change()
-SPY.columns = ['SPY_Return']
 SPY = pd.DataFrame(pd.DataFrame(SPY))
 
 merged_df = SPY.merge(portfolio_return, left_index=True, right_index=True)
 merged_df.iloc[0, 0] = 0
 
-
 merged_df['Adj Close'] = (1 + merged_df['Adj Close']) * 10000
 
+merged_df = merged_df.rename(columns={'Adj Close': 'SPY_Return'})
 print(merged_df)
 
 
-merged_df.plot(y=['Adj Close', 'portfolio_return'])
+merged_df.plot(y=['SPY_Return', 'portfolio_return'])
 
 # Set the x-axis to show monthly ticks
 
