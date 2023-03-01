@@ -42,30 +42,6 @@ Points = 50 # Number of points of the frontier
 method_mu ='hist' # Method to estimate expected returns based on historical data.
 method_cov ='hist' # Method to estimate covariance matrix based on historical data.
 
-def excel_download():
-    holdings_url = "https://github.com/ra6it/RiskParity/blob/main/RiskParity_Holdings_Constraints.xlsx?raw=true"
-    holdings_url = requests.get(holdings_url).content
-    assets = pd.read_excel(holdings_url,'Holdings',usecols="A:B", engine='openpyxl')
-    assets = assets.reindex(columns=['Asset', 'Industry'])
-    asset_classes = {'Asset': assets['Asset'].values.tolist(), 
-                     'Industry': assets['Industry'].values.tolist()}
-    asset_classes = pd.DataFrame(asset_classes)
-    asset_classes = asset_classes.sort_values(by=['Asset'])
-    asset = assets['Asset'].values.tolist()
-    asset = [x for x in asset if str(x) != 'nan']
-    return asset_classes, asset
-
-def datamanagement_1(start, end):
-    asset_classes, asset = excel_download()
-    df_list = []
-    asset = list(set(asset))
-    for i in asset:
-        asset_2 = yf.download(i, start=start, end=end)['Adj Close']
-        df_list.append(pd.DataFrame(asset_2))
-    prices = pd.concat(df_list, axis=1)
-    prices.columns = asset
-    return prices, asset_classes, asset
-
 ############################################################
 # Calculate assets returns
 ############################################################
@@ -151,16 +127,6 @@ def plot_frontier(vol_arr,ret_arr,sharpe_arr):
     #plt.scatter(max_sr_sr, max(vol_arr), c='green', s=50, edgecolors='black')
 
 ############################################################
-
-def data_management_2(prices, asset_classes, asset):
-    returns = prices
-    valid_assets = asset_classes['Asset'].isin(asset)
-    asset_classes = asset_classes[valid_assets]
-    asset_classes = pd.DataFrame(asset_classes)
-    asset_classes = asset_classes.sort_values(by=['Asset'])
-    return returns
-
-############################################################
 # Building a loop that estimate optimal portfolios on
 # rebalancing dates
 ############################################################
@@ -196,6 +162,8 @@ def next_sharpe(weights, log_return, sharpe_list):
 ############################################################
 def backtest(rng_start, ret, ret_pct, df_monthly):
     y_next = pd.DataFrame([])
+    portfolio_return_concat = pd.DataFrame([])
+    portfolio_return  = pd.DataFrame([])
     for i in rng_start:
         rng_end = pd.date_range(i, periods=1, freq='M')
         for b in rng_end:
@@ -209,10 +177,11 @@ def backtest(rng_start, ret, ret_pct, df_monthly):
                     w = monte_carlo(Y_adjusted)
                     next_i,next_b = next_month(i)
                     y_next = ret_pct[next_i:next_b]
-
                     Y_adjusted_next = asset_trimmer(b, df_monthly, y_next)
                     portfolio_return = portfolio_returns(w, Y_adjusted_next)
-    return portfolio_return
+                    #need the concat shit...
+                    portfolio_return_concat = pd.concat([portfolio_return, portfolio_return_concat], axis=0)
+    return portfolio_return_concat
 
 def asset_trimmer(b, df_monthly, Y):
         df_split_monthly = df_monthly[b:b]
@@ -249,11 +218,9 @@ def correlation_matrix(sharpe_array):
 ############################################################
 # Calling my functions
 ############################################################
-print(df_monthly)
-print(ret.to_string())
 ret_pct = ret.pct_change()
-print(ret_pct.to_string())
-portfolio_return = backtest(rng_start, ret, ret_pct, df_monthly)
+print(df_monthly)
+portfolio_return_concat = backtest(rng_start, ret, ret_pct, df_monthly)
 
 ############################################################
 # To normalize the charts to the same dfs.
@@ -280,24 +247,24 @@ class YearNormalize:
 #def returns_normalizer(asset):
 
 
-new_date = portfolio_return.index[0] - timedelta(days=1)
+new_date = portfolio_return_concat.index[0] - timedelta(days=1)
 new_row = pd.DataFrame({'portfolio_return': [0]}, index=[new_date])
-portfolio_return = pd.concat([new_row, portfolio_return]) 
-portfolio_return = (1 + portfolio_return['portfolio_return']) * 10000
-portfolio_return.to_frame()
-portfolio_return = pd.DataFrame(pd.DataFrame(portfolio_return))
+portfolio_return_concat = pd.concat([new_row, portfolio_return_concat]) 
+portfolio_return_concat = (1 + portfolio_return_concat['portfolio_return']) * 10000
+portfolio_return_concat.to_frame()
+portfolio_return_concat = pd.DataFrame(pd.DataFrame(portfolio_return_concat))
 
 ############################################################
 # Spy returns
 ############################################################
 
-Bench_start = portfolio_return.index.min()
-Bench_end   = portfolio_return.index.max()
+Bench_start = portfolio_return_concat.index.min()
+Bench_end   = portfolio_return_concat.index.max()
 
 SPY = yf.download('SPY', start=Bench_start, Bench_end=end)['Adj Close'].pct_change()
 SPY = pd.DataFrame(pd.DataFrame(SPY))
 
-merged_df = SPY.merge(portfolio_return, left_index=True, right_index=True)
+merged_df = SPY.merge(portfolio_return_concat, left_index=True, right_index=True)
 merged_df.iloc[0, 0] = 0
 
 merged_df['Adj Close'] = (1 + merged_df['Adj Close']) * 10000
