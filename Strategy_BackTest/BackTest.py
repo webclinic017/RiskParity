@@ -177,7 +177,9 @@ def backtest(rng_start, ret, ret_pct, df_monthly):
                     w = monte_carlo(Y_adjusted)
                     next_i,next_b = next_month(i)
                     y_next = ret_pct[next_i:next_b]
+
                     Y_adjusted_next = asset_trimmer(b, df_monthly, y_next)
+                    #print(w, y_next.head())                    
                     portfolio_return = portfolio_returns(w, Y_adjusted_next)
                     #need the concat shit...
                     portfolio_return_concat = pd.concat([portfolio_return, portfolio_return_concat], axis=0)
