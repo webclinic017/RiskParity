@@ -78,7 +78,7 @@ def monte_carlo(Y):
     # Somewhere here I need to set the weights of an asset = 0 if it is not trending.
     log_return = np.log(Y/Y.shift(1))
     sample = Y.shape[0]
-    num_ports = 10000
+    num_ports = 1000
     all_weights = np.zeros((num_ports, len(Y.columns)))
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
@@ -179,9 +179,9 @@ def backtest(rng_start, ret, ret_pct, df_monthly):
                     y_next = ret_pct[next_i:next_b]
 
                     Y_adjusted_next = asset_trimmer(b, df_monthly, y_next)
-                    #print(w, y_next.head())                    
-                    portfolio_return = portfolio_returns(w, Y_adjusted_next)
-                    #need the concat shit...
+                                     
+                    portfolio_return = portfolio_returns(w, Y_adjusted_next, b)
+                    #print(w, Y_adjusted_next.head()) 
                     portfolio_return_concat = pd.concat([portfolio_return, portfolio_return_concat], axis=0)
     return portfolio_return_concat
 
@@ -191,9 +191,17 @@ def asset_trimmer(b, df_monthly, Y):
         Y = Y.drop(columns=cols_to_drop)
         return Y
 
-def portfolio_returns(w, Y_adjusted_next):
+def portfolio_returns(w, Y_adjusted_next, b):
     df_daily_return = w.T*Y_adjusted_next
-    df_portfolio_return = pd.DataFrame(df_daily_return.sum(axis=1), columns=['portfolio_return'])\
+    w_df = pd.DataFrame(w).T
+    w_df.columns = df_daily_return.columns
+
+    w_df['date'] = w_df.index
+    w_df['date'] = b
+
+    w_df.set_index('date', inplace=True)
+    print(w_df.to_string())
+    df_portfolio_return = pd.DataFrame(df_daily_return.sum(axis=1), columns=['portfolio_return'])
     
     return df_portfolio_return
 
@@ -248,12 +256,6 @@ class YearNormalize:
 
 #def returns_normalizer(asset):
 
-
-new_date = portfolio_return_concat.index[0] - timedelta(days=1)
-new_row = pd.DataFrame({'portfolio_return': [0]}, index=[new_date])
-portfolio_return_concat = pd.concat([new_row, portfolio_return_concat]) 
-portfolio_return_concat = (1 + portfolio_return_concat['portfolio_return']).cumprod() * 10000
-portfolio_return_concat.to_frame()
 portfolio_return_concat = pd.DataFrame(pd.DataFrame(portfolio_return_concat))
 
 ############################################################
@@ -267,16 +269,13 @@ SPY = yf.download('SPY', start=Bench_start, Bench_end=end)['Adj Close'].pct_chan
 SPY = pd.DataFrame(pd.DataFrame(SPY))
 
 merged_df = SPY.merge(portfolio_return_concat, left_index=True, right_index=True)
-merged_df.iloc[0, 0] = 0
+merged_df.iloc[0] = 0
 
-merged_df['Adj Close'] = (1 + merged_df['Adj Close']).cumprod() * 10000
+merged_df = (1 + merged_df).cumprod() * 10000
 
 merged_df = merged_df.rename(columns={'Adj Close': 'SPY_Return'})
 
 #Something ain't right with something in the chart
-
-print(merged_df.to_string())
-
 
 merged_df.plot(y=['SPY_Return', 'portfolio_return'])
 
