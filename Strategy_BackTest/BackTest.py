@@ -12,7 +12,7 @@ from datetime import timedelta
 from calendar import monthrange
 from dateutil.relativedelta import relativedelta
 from scipy.optimize import minimize
-from Trend_Following import df_monthly, ret, start, end
+from Trend_Following import df_monthly, ret, start, end, dummy_short_df
 warnings.filterwarnings("ignore")
 #from datamanagement import excel_download, datamanagement_1, data_management_2
 
@@ -75,7 +75,6 @@ def optimize_risk_parity(Y, Ycov, counter, i):
 ############################################################
 
 def monte_carlo(Y):
-    # Somewhere here I need to set the weights of an asset = 0 if it is not trending.
     log_return = np.log(Y/Y.shift(1))
     sample = Y.shape[0]
     num_ports = 1000
@@ -83,6 +82,14 @@ def monte_carlo(Y):
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
     sharpe_arr = np.zeros(num_ports)
+    """
+    next step, allow short selling, so that the sum of weights must be [-1,1]
+
+    To do this, I suspect I will need to impliment the short trend, whereby if the asset is in a short trend, then we can ONLY sell it.
+    So, I will need to set up a new asset returns (Y) containing assets that can be both long and short, and another df outlining if they are long or short.
+
+    """
+
     for ind in range(num_ports): 
         # weights 
         weights = np.array(np.random.random(len(Y.columns))) 
@@ -230,6 +237,10 @@ def correlation_matrix(sharpe_array):
 ############################################################
 ret_pct = ret.pct_change()
 print(df_monthly)
+print(dummy_short_df)
+
+df_dummy_sum = pd.DataFrame()
+
 portfolio_return_concat = backtest(rng_start, ret, ret_pct, df_monthly)
 
 ############################################################

@@ -42,11 +42,10 @@ def dummy_sma(rolling_df, ret):
         dummy_df[asset_name] = (rolling_df[asset_name] < ret[asset_name]).astype(int)
         dummy_short_df[asset_name] = (rolling_df[asset_name] > ret[asset_name]).astype(int)
     df_monthly = dummy_df.resample('M').mean()
-    #dummy_short_df = dummy_short_df.resample('M').mean()
-    print(dummy_short_df)
-    return df_monthly
+    dummy_short_df =  -1 * (dummy_short_df.resample('M').mean())
+    return df_monthly, dummy_short_df
 
 rolling_df = calculate_rolling_average(ret, min(200, len(ret)))
-df_monthly = dummy_sma(rolling_df, ret)
+df_monthly, dummy_short_df = dummy_sma(rolling_df, ret)
  
 # Now, if the row for a specific contract is <0, then we can exclude it from our sample set, and it is not needed. This is part of the asset selection component.
