@@ -212,8 +212,7 @@ def backtest(rng_start, ret, ret_pct, df_monthly):
                     w = monte_carlo(Y_adjusted)
                     next_i,next_b = next_month(i)
                     y_next = ret_pct[next_i:next_b]
-                    print("Y_next_adjusted", Y_adjusted[next_i:next_b])
-                    print("y_next", y_next)
+
                     Y_adjusted_next = asset_trimmer(b, df_monthly, y_next)
                     portfolio_return = portfolio_returns(w, Y_adjusted_next)
     return portfolio_return
@@ -260,6 +259,8 @@ sharpe_list = []
 ret_pct = ret.pct_change()
 portfolio_return = backtest(rng_start, ret, ret_pct, df_monthly)
 print(portfolio_return)
+
+
 
 ############################################################
 # To normalize the charts to the same dfs.
@@ -309,6 +310,7 @@ SPY = SPY_ret_2(Start_bench, End)
 SPY.columns = ['SPY']
 
 merged_df = pd.merge(SPY, portfolio_return, left_index=True, right_index=True, how='inner')
+print(merged_df)
 ############################################################
 # Plot
 ############################################################

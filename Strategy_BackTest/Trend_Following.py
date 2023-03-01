@@ -3,7 +3,7 @@ import pandas as pd
 from datamanagement import *
 import numpy as np
 
-start = '2021-01-01'
+start = '2021-11-01'
 end = '2022-12-31'
 
 prices, asset_classes, asset = datamanagement_1(start, end)
