@@ -39,7 +39,7 @@ def dummy_sma(rolling_df, ret):
             continue
             
         # Compare the prices of the asset for each date
-        dummy_df[f'{asset_name} Higher in ret'] = (rolling_df[asset_name] < ret[asset_name]).astype(int)
+        dummy_df[asset_name] = (rolling_df[asset_name] < ret[asset_name]).astype(int)
     df_monthly = dummy_df.resample('M').mean()
 
     return df_monthly
