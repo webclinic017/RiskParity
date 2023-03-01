@@ -239,6 +239,8 @@ ret_pct = ret.pct_change()
 print(df_monthly)
 print(dummy_short_df)
 
+# Need to determine how to merge these 2 dfs
+
 df_dummy_sum = pd.DataFrame()
 
 portfolio_return_concat = backtest(rng_start, ret, ret_pct, df_monthly)
