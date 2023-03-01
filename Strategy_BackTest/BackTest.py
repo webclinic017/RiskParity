@@ -8,8 +8,7 @@ import riskfolio as rp
 import requests
 import seaborn as sns
 import matplotlib.pyplot as plt
-import qgrid
-import plotly.graph_objects as go
+from datetime import timedelta
 from calendar import monthrange
 from dateutil.relativedelta import relativedelta
 from scipy.optimize import minimize
@@ -253,14 +252,8 @@ def correlation_matrix(sharpe_array):
 # Calling my functions
 ############################################################
 
-sharpe_list = []
-#prices, asset_classes, asset = datamanagement_1(start, end)
-#ret = data_management_2(prices, asset_classes, asset)
 ret_pct = ret.pct_change()
 portfolio_return = backtest(rng_start, ret, ret_pct, df_monthly)
-print(portfolio_return)
-
-
 
 ############################################################
 # To normalize the charts to the same dfs.
@@ -281,46 +274,41 @@ class YearNormalize:
         return specific_year, specific_month, specific_month_1
 
 ############################################################
+# Portfolio returns
+############################################################
+
+#def returns_normalizer(asset):
+
+
+new_date = portfolio_return.index[0] - timedelta(days=1)
+new_row = pd.DataFrame({'portfolio_return': [0]}, index=[new_date])
+portfolio_return = pd.concat([new_row, portfolio_return]) 
+portfolio_return = (1 + portfolio_return['portfolio_return']) * 10000
+portfolio_return.to_frame()
+portfolio_return = pd.DataFrame(pd.DataFrame(portfolio_return))
+
+############################################################
 # Spy returns
 ############################################################
 
-def SPY_ret_2(Start_bench, End):
-    SPY_2 = yf.download("SPY", start=Start_bench, end=End)['Adj Close']
-    SPY = SPY_2/SPY_2.iloc[0]
-    SPY = SPY*10000
-    return SPY
+Bench_start = portfolio_return.index.min()
+Bench_end   = portfolio_return.index.max()
 
-def SPY_ret(prices):
-    SPY = prices['SPY'].dropna()
-    mask = (SPY.index.year == YearNormalize(wght).specific_year) & (SPY.index.month == YearNormalize(wght).specific_month)
-    SPY.drop(SPY[mask].index, inplace=True)
-    mask_2 = (SPY.index.year == YearNormalize(wght).specific_year) & (SPY.index.month == YearNormalize(wght).specific_month_1)
-    SPY.drop(SPY[mask_2].index, inplace=True)
-    SPY = SPY/SPY.iloc[0]
-    print(SPY)
-    SPY.drop(SPY.index[0], inplace=True)
-    #SPY.iloc[0,:] = 0
-    return SPY*10000
+SPY = yf.download('SPY', start=Bench_start, Bench_end=end)['Adj Close'].pct_change()
+SPY.columns = ['SPY_Return']
+SPY = pd.DataFrame(pd.DataFrame(SPY))
 
-############################################################
-# Create 1 df
-############################################################
+merged_df = SPY.merge(portfolio_return, left_index=True, right_index=True)
+merged_df.iloc[0, 0] = 0
 
-SPY = SPY_ret_2(Start_bench, End)
-SPY.columns = ['SPY']
 
-merged_df = pd.merge(SPY, portfolio_return, left_index=True, right_index=True, how='inner')
+merged_df['Adj Close'] = (1 + merged_df['Adj Close']) * 10000
+
 print(merged_df)
-############################################################
-# Plot
-############################################################
 
-fig, ax = plt.subplots()
-merged_df['portfolio_return'].plot(ax=ax, label='Portfolio Returns')
-SPY.plot(ax=ax, label='SPY')
+
+merged_df.plot(y=['Adj Close', 'portfolio_return'])
 
 # Set the x-axis to show monthly ticks
-ax.xaxis.set_major_locator(plt.MaxNLocator(months_between/4))
 
-plt.legend()
-#plt.show()
+plt.show()
