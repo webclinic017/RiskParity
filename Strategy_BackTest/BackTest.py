@@ -99,7 +99,7 @@ def optimize_risk_parity(Y, Ycov, counter, i):
 # Monte carlo
 ############################################################
 
-def monte_carlo(Y, df_split_monthly):
+def monte_carlo(Y):
     # Somewhere here I need to set the weights of an asset = 0 if it is not trending.
     log_return = np.log(Y/Y.shift(1))
     sample = Y.shape[0]
@@ -207,41 +207,37 @@ def backtest(rng_start, ret, ret_pct, sharpe_list, df_monthly):
         rng_end = pd.date_range(i, periods=1, freq='M')
         for b in rng_end:
             Y = ret[i:b]
-            # If 
-            #print("B equals:", b)
-            df_split_monthly = df_monthly[b:b]
             # I need to set weight = 0 if a column in df_monthly < 0.8, for example (I could run a monte carlo to get this parameter!!!)
-
-            #Ycov = Y.cov()
-            #optimized_weights = optimize_risk_parity(Y, Ycov, counter, i)
-            #w = optimized_weights.round(6)
             if rng_start[-1] == i:
                 print("last month")
             else:
-                w = monte_carlo(Y, df_split_monthly)
-                next_i,next_b = next_month(i)
-                y_next = ret_pct[next_i:next_b]
+                Y_adjusted = asset_trimmer(b, df_monthly, Y)
+                if Y_adjusted.empty:
+                    print(Y_adjusted, " is empty")
+                else:
+                    
+                    w = monte_carlo(Y_adjusted)
+                    next_i,next_b = next_month(i)
+                    y_next = ret_pct[next_i:next_b]
+                    Y_adjusted_next = asset_trimmer(next_b, df_monthly, y_next)
+                    portfolio_returns(w, Y_adjusted_next)
+                    #sharpe_df = pd.DataFrame(sharpe_array, columns=['Sharpe_Ratio']
 
-                sharpe_array = next_sharpe(w, y_next, sharpe_list)
+                #Calculate returns within the loop and return it
 
-                #sharpe_df = pd.DataFrame(sharpe_array, columns=['Sharpe_Ratio'])
-                weight_printer = pd.DataFrame(w).T
-                weight_printer.columns = Y.columns.T
-                wgt = pd.concat([weight_printer.T, pd.DataFrame(rng_end, index={"Date"})]).T
-                wgt = wgt.set_index(wgt["Date"])
-                wght = pd.concat([wght, wgt], axis = 0)
-                #Convert the returns and weightings to numpy.
-                myreturns = np.dot(w, y_next.T)
-                myret = pd.DataFrame(myreturns.T, index = y_next.index)
-                #Setting up my correlation matrices
-                merged_df = weight_printer
-                merged_df['Sharpe_ratio'] = sharpe_array
-                merged_df['Date'] = pd.DataFrame(rng_end, index={"Date"})
-                merged_df = merged_df.set_index(wgt["Date"])
-                merged_df = merged_df.drop('Date', axis = 1)
-                merged_array = pd.concat([merged_array, merged_df], axis = 0)
-                x = pd.concat([x, myret], axis = 0)
-    return wght, x, merged_array
+
+    return wght, x, #merged_array
+
+def asset_trimmer(b, df_monthly, Y):
+        df_split_monthly = df_monthly[b:b]
+        print("df_monthly", df_split_monthly)
+        cols_to_drop = [col for col in df_split_monthly.columns if df_split_monthly[col].max() < 0.3]
+        Y = Y.drop(columns=cols_to_drop)
+        return Y
+
+def portfolio_returns(w, Y_adjusted_next):
+    print(Y_adjusted_next)
+    print("need to short shit out")
 
 def returns_functions():
     print("need to sort this out")
