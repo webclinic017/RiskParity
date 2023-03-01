@@ -195,22 +195,18 @@ def next_sharpe(weights, log_return, sharpe_list):
 ############################################################
 # Backtesting
 ############################################################
-def backtest(rng_start, ret, ret_pct, sharpe_list, df_monthly):
+def backtest(rng_start, ret, ret_pct, df_monthly):
     wght = pd.DataFrame([])
     x = pd.DataFrame([])
     y_next = pd.DataFrame([])
-    merged_array = pd.DataFrame([])
-
-    # Need to set rng_start to the start of the sma df.
-
     for i in rng_start:
         rng_end = pd.date_range(i, periods=1, freq='M')
         for b in rng_end:
-            Y = ret[i:b]
             # I need to set weight = 0 if a column in df_monthly < 0.8, for example (I could run a monte carlo to get this parameter!!!)
             if rng_start[-1] == i:
                 print("last month")
             else:
+                Y = ret[i:b]
                 Y_adjusted = asset_trimmer(b, df_monthly, Y)
                 if Y_adjusted.empty:
                     print(Y_adjusted, " is empty")
@@ -274,7 +270,7 @@ sharpe_list = []
 #prices, asset_classes, asset = datamanagement_1(start, end)
 #ret = data_management_2(prices, asset_classes, asset)
 ret_pct = ret.pct_change()
-wght, x, sharpe_array = backtest(rng_start, ret, ret_pct, sharpe_list, df_monthly)
+wght, x, sharpe_array = backtest(rng_start, ret, ret_pct, df_monthly)
 #correlation_matrix(sharpe_array)
 wght_2 = backtest_drop(wght)
 wght.drop(columns=['Date'], axis = 1, inplace = True)
