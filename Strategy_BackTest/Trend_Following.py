@@ -32,6 +32,7 @@ def calculate_rolling_average(ret, window):
 
 def dummy_sma(rolling_df, ret):
     dummy_df = pd.DataFrame(index=rolling_df.index)
+    dummy_short_df = pd.DataFrame(index=rolling_df.index)
     for asset_name in rolling_df.columns:
     # Skip non-numeric columns
         if not np.issubdtype(rolling_df[asset_name].dtype, np.number):
@@ -39,8 +40,9 @@ def dummy_sma(rolling_df, ret):
             
         # Compare the prices of the asset for each date
         dummy_df[asset_name] = (rolling_df[asset_name] < ret[asset_name]).astype(int)
+        dummy_short_df[asset_name] = (rolling_df[asset_name] > ret[asset_name]).astype(int)
     df_monthly = dummy_df.resample('M').mean()
-
+    print(dummy_short_df)
     return df_monthly
 
 rolling_df = calculate_rolling_average(ret, min(200, len(ret)))
