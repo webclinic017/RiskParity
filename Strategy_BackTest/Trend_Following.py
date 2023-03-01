@@ -40,9 +40,8 @@ def dummy_sma(rolling_df, ret):
             
         # Compare the prices of the asset for each date
         dummy_df[asset_name] = (rolling_df[asset_name] < ret[asset_name]).astype(int)
-        dummy_short_df[asset_name] = (rolling_df[asset_name] > ret[asset_name]).astype(int)
+        dummy_short_df[asset_name] = np.where(rolling_df[asset_name] < ret[asset_name], 1, -1)
     df_monthly = dummy_df.resample('M').mean()
-    dummy_short_df =  -1 * (dummy_short_df.resample('M').mean())
     return df_monthly, dummy_short_df
 
 rolling_df = calculate_rolling_average(ret, min(200, len(ret)))
