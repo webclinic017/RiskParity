@@ -40,7 +40,7 @@ def dummy_sma(rolling_df, ret):
             
         # Compare the prices of the asset for each date
         dummy_L_df[asset_name] = (rolling_df[asset_name] < ret[asset_name]).astype(int)
-        dummy_LS_df[asset_name] = np.where(rolling_df[asset_name] < ret[asset_name], 1, -1)
+        dummy_LS_df[asset_name] = np.where(rolling_df[asset_name] < ret[asset_name], 0, -1)
     dummy_L_df  = dummy_L_df.resample('M').mean()
     dummy_LS_df = dummy_LS_df.resample('M').mean()
     print(dummy_L_df)
