@@ -111,7 +111,8 @@ def monte_carlo(Y):
     #To-do:
     #enable short selling
     #enable leverage
-
+    #print(Y.columns)
+    #print(all_weights[max_sh,:])
     return all_weights[max_sh,:]
 
 def monte_carlo_SL(Y, short_df):
@@ -230,7 +231,7 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls):
                 else:
                     Y = ret[i:b]
                     Y_adjusted = asset_trimmer(b, dummy_L_df, Y)
-                    print(dummy_L_df[b:b])
+                    #print(dummy_L_df[b:b])
                     if not Y_adjusted.empty:
                         w = monte_carlo(Y_adjusted) #Long
                         next_i,next_b = next_month(i)
