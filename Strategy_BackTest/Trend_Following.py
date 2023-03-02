@@ -43,6 +43,8 @@ def dummy_sma(rolling_df, ret):
         dummy_LS_df[asset_name] = np.where(rolling_df[asset_name] < ret[asset_name], 1, -1)
     dummy_L_df  = dummy_L_df.resample('M').mean()
     dummy_LS_df = dummy_LS_df.resample('M').mean()
+    print(dummy_L_df)
+    print(dummy_LS_df)
     return dummy_L_df, dummy_LS_df
 
 rolling_df = calculate_rolling_average(ret, min(200, len(ret)))
