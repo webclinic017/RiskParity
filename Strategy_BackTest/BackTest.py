@@ -259,11 +259,12 @@ def asset_trimmer(b, df_monthly, Y):
 def weightings(w, Y_adjusted, i):
     w_df = pd.DataFrame(w).T
     w_df.columns = Y_adjusted.columns
-
+    z = w_df
     w_df['date'] = w_df.index
     w_df['date'] = i
-
     w_df.set_index('date', inplace=True)
+    if not z.sum(axis=1).eq(1.0).all():
+        print("ALERT SUM OF DF !=1 DFSUM EQUALS",  z.sum(axis=1))
     print("Weight_DF", w_df.to_string())
 
 def portfolio_returns(w, Y_adjusted_next, b):
