@@ -1,13 +1,11 @@
 import pandas as pd
 import datetime
 import yfinance as yf
-import backtrader as bt
 import numpy as np 
 import warnings
-import riskfolio as rp
 import seaborn as sns
 import matplotlib.pyplot as plt
-from datetime import timedelta
+from datetime import datetime
 from calendar import monthrange
 from dateutil.relativedelta import relativedelta
 from scipy.optimize import minimize
@@ -22,8 +20,8 @@ counter = 4
 Start = start
 End = end
 
-date1 = datetime.datetime.strptime(Start, "%Y-%m-%d")
-date2 = datetime.datetime.strptime(End, "%Y-%m-%d")
+date1 = datetime.strptime(Start, "%Y-%m-%d")
+date2 = datetime.strptime(End, "%Y-%m-%d")
 diff = relativedelta(date2, date1)
 
 Start_bench = date1 + relativedelta(months=1)
@@ -76,7 +74,7 @@ def optimize_risk_parity(Y, Ycov, counter, i):
 def monte_carlo(Y):
     log_return = np.log(Y/Y.shift(1))
     sample = Y.shape[0]
-    num_ports = 5000
+    num_ports = 1000
     all_weights = np.zeros((num_ports, len(Y.columns)))
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
@@ -91,10 +89,12 @@ def monte_carlo(Y):
 
     for ind in range(num_ports): 
         # weights 
-        weights = np.array(np.random.random(len(Y.columns))) 
-        weights = weights/np.sum(weights)  
-       
-        # save the weights
+        weights = np.random.dirichlet(np.ones(len(Y.columns)), size=1)
+        weights = np.squeeze(weights)
+        
+        # Enforce minimum weight
+        weights = np.maximum(weights, 0.05)
+        weights = weights/np.sum(weights)
         all_weights[ind,:] = weights
         
         # expected return 
@@ -174,7 +174,11 @@ def plot_frontier(vol_arr,ret_arr,sharpe_arr):
 rng_start = pd.date_range(start, periods=months_between, freq='MS')
 
 def next_month(i):
-    next_i = i + pd.Timedelta(days=31)
+    #next_i = i + pd.Timedelta(days=31)
+    i_str = i.strftime('%Y-%m')
+    dt = datetime.strptime(i_str, '%Y-%m')
+    next_month = dt + relativedelta(months=1)
+    next_i = datetime(next_month.year, next_month.month, 1)
     next_b = pd.date_range(start=next_i, periods=1, freq='M')
     next_b = next_b[0]
     return next_i,next_b
@@ -204,15 +208,17 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls):
     y_next = pd.DataFrame([])
     portfolio_return_concat = pd.DataFrame([])
     portfolio_return  = pd.DataFrame([])       
-
     for i in rng_start:
         rng_end = pd.date_range(i, periods=1, freq='M')
         for b in rng_end:
-            # I need to set weight = 0 if a column in df_monthly < 0.8, for example (I could run a monte carlo to get this parameter!!!)
+            # cleanup here
             if rng_start[-1] == i:
-                print("last month")
+                Y = ret[i:b]
+                Y_adjusted = asset_trimmer(b, dummy_L_df, Y)
+                w = monte_carlo(Y_adjusted)
+                weightings(w, Y_adjusted, i)
             else:
-                if ls == "True":
+                if ls == 0:
                     Y_LS = ret[i:b]
                     Y_adjusted_LS = asset_trimmer_LS(b, dummy_LS_df, Y_LS)
                     if not Y_adjusted_LS.empty:
@@ -224,9 +230,11 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls):
                 else:
                     Y = ret[i:b]
                     Y_adjusted = asset_trimmer(b, dummy_L_df, Y)
+                    print(dummy_L_df[b:b])
                     if not Y_adjusted.empty:
                         w = monte_carlo(Y_adjusted) #Long
                         next_i,next_b = next_month(i)
+                        weightings(w, Y_adjusted, next_i)
                         y_next = ret_pct[next_i:next_b]
                         Y_adjusted_next_L = asset_trimmer(b, dummy_L_df, y_next) #Long
                         portfolio_return = portfolio_returns(w, Y_adjusted_next_L, b) #Long
@@ -238,7 +246,7 @@ def asset_trimmer_LS(b, df_monthly, Y):
         df_split_monthly = df_monthly[b:b]
         print("are we here???")
         cols_to_drop = [col for col in df_split_monthly.columns if (-0.8 < df_split_monthly[col].max() < 0.8)]
-        print(df_split_monthly.drop(columns=cols_to_drop))
+        print("Trend DF", df_split_monthly.drop(columns=cols_to_drop))
         Y = Y.drop(columns=cols_to_drop)
         return Y
 
@@ -248,16 +256,19 @@ def asset_trimmer(b, df_monthly, Y):
         Y = Y.drop(columns=cols_to_drop)
         return Y
 
-def portfolio_returns(w, Y_adjusted_next, b):
-    df_daily_return = w.T*Y_adjusted_next
+def weightings(w, Y_adjusted, i):
     w_df = pd.DataFrame(w).T
-    w_df.columns = df_daily_return.columns
+    w_df.columns = Y_adjusted.columns
 
     w_df['date'] = w_df.index
-    w_df['date'] = b
+    w_df['date'] = i
 
     w_df.set_index('date', inplace=True)
-    print(w_df.to_string())
+    print("Weight_DF", w_df.to_string())
+
+def portfolio_returns(w, Y_adjusted_next, b):
+    df_daily_return = w.T*Y_adjusted_next
+
     df_portfolio_return = pd.DataFrame(df_daily_return.sum(axis=1), columns=['portfolio_return'])
     
     return df_portfolio_return
@@ -290,7 +301,7 @@ ret_pct = ret.pct_change()
 # Need to determine how to merge these 2 dfs
 
 df_dummy_sum = pd.DataFrame()
-ls = "True"
+ls = 1
 portfolio_return_concat = backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls)
 
 ############################################################
@@ -335,7 +346,7 @@ merged_df.iloc[0] = 0
 merged_df = (1 + merged_df).cumprod() * 10000
 
 merged_df = merged_df.rename(columns={'Adj Close': 'SPY_Return'})
-
+print(merged_df)
 #Something ain't right with something in the chart
 
 merged_df.plot(y=['SPY_Return', 'portfolio_return'])
