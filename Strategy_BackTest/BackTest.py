@@ -76,7 +76,7 @@ def optimize_risk_parity(Y, Ycov, counter, i):
 def monte_carlo(Y):
     log_return = np.log(Y/Y.shift(1))
     sample = Y.shape[0]
-    num_ports = 1000
+    num_ports = 5000
     all_weights = np.zeros((num_ports, len(Y.columns)))
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
@@ -114,7 +114,7 @@ def monte_carlo(Y):
 
     return all_weights[max_sh,:]
 
-def monte_carlo_SL(Y):
+def monte_carlo_SL(Y, short_df):
     log_return = np.log(Y/Y.shift(1))
     sample = Y.shape[0]
     num_ports = 1000
@@ -122,22 +122,19 @@ def monte_carlo_SL(Y):
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
     sharpe_arr = np.zeros(num_ports)
-    """
-    next step, allow short selling, so that the sum of weights must be [-1,1]
-
-    To do this, I suspect I will need to impliment the short trend, whereby if the asset is in a short trend, then we can ONLY sell it.
-    So, I will need to set up a new asset returns (Y) containing assets that can be both long and short, and another df outlining if they are long or short.
-
-    """
 
     for ind in range(num_ports): 
         # weights 
-        weights = np.random.uniform(-1, 1, len(Y.columns))
-        weights /= np.abs(weights).sum() # ensure absolute sum of weights is 1 or less
+        weights = np.array(np.random.random(len(Y.columns))) 
+
+        # set maximum weight of 1 for assets with value of 1 or greater in short_df
+        mask = short_df >= 1
+        weights[mask] = weights[mask] / np.sum(weights[mask])
+        weights[~mask] = weights[~mask] / np.sum(np.abs(weights[~mask]))
 
         # save the weights
         all_weights[ind,:] = weights
-        
+
         # expected return 
         ret_arr[ind] = np.sum((log_return.mean()*weights)*sample)
 
@@ -146,12 +143,8 @@ def monte_carlo_SL(Y):
 
         # Sharpe Ratio 
         sharpe_arr[ind] = ret_arr[ind]/vol_arr[ind]
-    max_sh = sharpe_arr.argmax()
-    #plot_frontier(vol_arr,ret_arr,sharpe_arr)
 
-    #To-do:
-    #enable short selling
-    #enable leverage
+    max_sh = sharpe_arr.argmax()
 
     return all_weights[max_sh,:]
 
@@ -207,10 +200,11 @@ def next_sharpe(weights, log_return, sharpe_list):
 ############################################################
 # Backtesting
 ############################################################
-def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, long_short_ret):
+def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls):
     y_next = pd.DataFrame([])
     portfolio_return_concat = pd.DataFrame([])
-    portfolio_return  = pd.DataFrame([])
+    portfolio_return  = pd.DataFrame([])       
+
     for i in rng_start:
         rng_end = pd.date_range(i, periods=1, freq='M')
         for b in rng_end:
@@ -218,31 +212,33 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, long_short_ret):
             if rng_start[-1] == i:
                 print("last month")
             else:
-                #Y_L = ret[i:b] #Long
-                Y_LS = long_short_ret[i:b]
-                #Y_adjusted = asset_trimmer(b, dummy_L_df, Y_L)#Long
-                Y_adjusted_LS = asset_trimmer_LS(b, dummy_LS_df, Y_LS)
-                #if not Y_adjusted.empty: #Long
-                if not Y_adjusted_LS.empty:
-                    #w = monte_carlo(Y_adjusted) #Long
-                    w_SL = monte_carlo_SL(Y_adjusted_LS)
-                    next_i,next_b = next_month(i)
-                    y_next = ret_pct[next_i:next_b]
-                    Y_adjusted_next_L = asset_trimmer(b, dummy_L_df, y_next)
-                    Y_adjusted_next_SL = asset_trimmer(b, dummy_LS_df, y_next)
-
-                    #portfolio_return = portfolio_returns(w, Y_adjusted_next_L, b) #Long
-                    portfolio_return = portfolio_returns(w_SL, Y_adjusted_next_SL, b)
-
-                    #print(w, Y_adjusted_next.head()) 
-                    #portfolio_return_concat = pd.concat([portfolio_return, portfolio_return_concat], axis=0) #Long
-                    portfolio_return_concat = pd.concat([portfolio_return, portfolio_return_concat], axis=0)
+                if ls == "True":
+                    Y_LS = ret[i:b]
+                    Y_adjusted_LS = asset_trimmer_LS(b, dummy_LS_df, Y_LS)
+                    if not Y_adjusted_LS.empty:
+                        w_SL = monte_carlo_SL(Y_adjusted_LS, dummy_LS_df)
+                        next_i,next_b = next_month(i)
+                        y_next = ret_pct[next_i:next_b]
+                        Y_adjusted_next_SL = asset_trimmer_LS(b, dummy_LS_df, y_next)
+                        portfolio_return = portfolio_returns(w_SL, Y_adjusted_next_SL, b)
+                else:
+                    Y = ret[i:b]
+                    Y_adjusted = asset_trimmer(b, dummy_L_df, Y)
+                    if not Y_adjusted.empty:
+                        w = monte_carlo(Y_adjusted) #Long
+                        next_i,next_b = next_month(i)
+                        y_next = ret_pct[next_i:next_b]
+                        Y_adjusted_next_L = asset_trimmer(b, dummy_L_df, y_next) #Long
+                        portfolio_return = portfolio_returns(w, Y_adjusted_next_L, b) #Long
+                portfolio_return_concat = pd.concat([portfolio_return, portfolio_return_concat], axis=0) #Long
 
     return portfolio_return_concat
 
 def asset_trimmer_LS(b, df_monthly, Y):
         df_split_monthly = df_monthly[b:b]
+        print("are we here???")
         cols_to_drop = [col for col in df_split_monthly.columns if (-0.8 < df_split_monthly[col].max() < 0.8)]
+        print(df_split_monthly.drop(columns=cols_to_drop))
         Y = Y.drop(columns=cols_to_drop)
         return Y
 
@@ -291,13 +287,11 @@ def correlation_matrix(sharpe_array):
 ############################################################
 ret_pct = ret.pct_change()
 
-long_short_ret = dummy_LS_df * ret_pct
-print(long_short_ret)
 # Need to determine how to merge these 2 dfs
 
 df_dummy_sum = pd.DataFrame()
-
-portfolio_return_concat = backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, long_short_ret)
+ls = "True"
+portfolio_return_concat = backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls)
 
 ############################################################
 # To normalize the charts to the same dfs.
