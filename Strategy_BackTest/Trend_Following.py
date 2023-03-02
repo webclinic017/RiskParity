@@ -4,7 +4,7 @@ from datamanagement import *
 import numpy as np
 
 start = '2019-01-01'
-end = '2022-12-31'
+end = '2023-03-02'
 
 prices, asset_classes, asset = datamanagement_1(start, end)
 ret = data_management_2(prices, asset_classes, asset)
