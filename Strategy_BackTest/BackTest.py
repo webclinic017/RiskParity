@@ -8,9 +8,16 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 from calendar import monthrange
 from dateutil.relativedelta import relativedelta
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
+import plotly.graph_objs as go
 from scipy.optimize import minimize
 from Trend_Following import dummy_L_df, ret, start, end, dummy_LS_df
 warnings.filterwarnings("ignore")
+
+
+# Load portfolio returns data into a D
 #from datamanagement import excel_download, datamanagement_1, data_management_2
 
 # Date range
@@ -208,7 +215,8 @@ def next_sharpe(weights, log_return, sharpe_list):
 def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls):
     y_next = pd.DataFrame([])
     portfolio_return_concat = pd.DataFrame([])
-    portfolio_return  = pd.DataFrame([])       
+    portfolio_return  = pd.DataFrame([])
+    weight_concat = pd.DataFrame([])    
     for i in rng_start:
         rng_end = pd.date_range(i, periods=1, freq='M')
         for b in rng_end:
@@ -217,7 +225,7 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls):
                 Y = ret[i:b]
                 Y_adjusted = asset_trimmer(b, dummy_L_df, Y)
                 w = monte_carlo(Y_adjusted)
-                weightings(w, Y_adjusted, i)
+                weight_concat = weightings(w, Y_adjusted, i, weight_concat)
             else:
                 if ls == 0:
                     Y_LS = ret[i:b]
@@ -231,17 +239,16 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls):
                 else:
                     Y = ret[i:b]
                     Y_adjusted = asset_trimmer(b, dummy_L_df, Y)
-                    #print(dummy_L_df[b:b])
                     if not Y_adjusted.empty:
                         w = monte_carlo(Y_adjusted) #Long
                         next_i,next_b = next_month(i)
-                        weightings(w, Y_adjusted, next_i)
+                        weight_concat = weightings(w, Y_adjusted, next_i, weight_concat)
                         y_next = ret_pct[next_i:next_b]
                         Y_adjusted_next_L = asset_trimmer(b, dummy_L_df, y_next) #Long
                         portfolio_return = portfolio_returns(w, Y_adjusted_next_L, b) #Long
                 portfolio_return_concat = pd.concat([portfolio_return, portfolio_return_concat], axis=0) #Long
 
-    return portfolio_return_concat
+    return portfolio_return_concat, weight_concat
 
 def asset_trimmer_LS(b, df_monthly, Y):
         df_split_monthly = df_monthly[b:b]
@@ -257,16 +264,15 @@ def asset_trimmer(b, df_monthly, Y):
         Y = Y.drop(columns=cols_to_drop)
         return Y
 
-def weightings(w, Y_adjusted, i):
+def weightings(w, Y_adjusted, i, weight_concat):
     w_df = pd.DataFrame(w).T
     w_df.columns = Y_adjusted.columns
     z = w_df
     w_df['date'] = w_df.index
     w_df['date'] = i
     w_df.set_index('date', inplace=True)
-    if not z.sum(axis=1).eq(1.0).all():
-        print("ALERT SUM OF DF !=1 DFSUM EQUALS",  z.sum(axis=1))
-    print("Weight_DF", w_df.to_string())
+    weight_concat = pd.concat([weight_concat,w_df]).fillna(0)
+    return weight_concat
 
 def portfolio_returns(w, Y_adjusted_next, b):
     df_daily_return = w.T*Y_adjusted_next
@@ -304,26 +310,10 @@ ret_pct = ret.pct_change()
 
 df_dummy_sum = pd.DataFrame()
 ls = 1
-portfolio_return_concat = backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls)
+portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls)
 
-############################################################
-# To normalize the charts to the same dfs.
-############################################################
-class YearNormalize:
-    def __init__(self, wght):
-        self.wght = wght
-        self.specific_month_1, self.specific_year, self.specific_month = self.year_normalize()
-
-    def year_normalize(self):
-        specific_year  = self.wght.index[0].year
-        specific_month = self.wght.index[0].month
-        if self.wght.index[0].month - 1 == 0:
-            specific_month_1  = 12
-        else:
-            specific_month_1 = self.wght.index[0].month - 1
-        specific_month_1 = specific_month_1
-        return specific_year, specific_month, specific_month_1
-
+print(weight_concat)
+weight_concat = weight_concat.drop(index=weight_concat.index[-1])
 ############################################################
 # Portfolio returns
 ############################################################
@@ -349,10 +339,85 @@ merged_df = (1 + merged_df).cumprod() * 10000
 
 merged_df = merged_df.rename(columns={'Adj Close': 'SPY_Return'})
 print(merged_df)
+
 #Something ain't right with something in the chart
+def portfolio_returns_app(returns_df, weights_df):
+    # Calculate summary statistics for portfolio returns
+    returns = returns_df.pct_change()
+    returns.dropna(inplace=True)
+    portfolio_mean_returns = returns['portfolio_return'].mean()
+    portfolio_std_returns = returns['portfolio_return'].std()
+    portfolio_sharpe_ratio = np.sqrt(252) * (portfolio_mean_returns / portfolio_std_returns)
+    portfolio_monthly_sharpe_ratio = np.sqrt(12) * (portfolio_mean_returns / portfolio_std_returns)
 
-merged_df.plot(y=['SPY_Return', 'portfolio_return'])
+    # Create a line chart of portfolio and benchmark returns
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=returns_df.index, y=returns_df['portfolio_return'], mode='lines', name='Portfolio Return'))
+    fig.add_trace(go.Scatter(x=returns_df.index, y=returns_df['SPY_Return'], mode='lines', name='SPY Returns'))
 
-# Set the x-axis to show monthly ticks
+    # Create a table of summary statistics for portfolio and benchmark returns
+    returns_table = html.Table(children=[
+            html.Tr(children=[
+                html.Th('Statistic'),
+                html.Th('Portfolio Returns'),
+                html.Th('SPY Returns')
+            ]),
+            html.Tr(children=[
+                html.Td('Mean Returns'),
+                html.Td(round(portfolio_mean_returns, 4)),
+                html.Td(round(returns['SPY_Return'].mean(), 4))
+            ]),
+            html.Tr(children=[
+                html.Td('Std Returns'),
+                html.Td(round(portfolio_std_returns, 4)),
+                html.Td(round(returns['SPY_Return'].std(), 4))
+            ]),
+            html.Tr(children=[
+                html.Td('Sharpe Ratio'),
+                html.Td('Portfolio: ' + str(round(portfolio_sharpe_ratio, 4))),
+                html.Td('SPY: ' + str(round(np.sqrt(252) * (returns['SPY_Return'].mean() / returns['SPY_Return'].std()), 4)))
+            ]),
+            html.Tr(children=[
+                html.Td('Monthly Sharpe Ratio'),
+                html.Td('Portfolio: ' + str(round(portfolio_monthly_sharpe_ratio, 4))),
+                html.Td('SPY: ' + str(round(np.sqrt(12) * (returns['SPY_Return'].mean() / returns['SPY_Return'].std()), 4)))
+            ])
+        ])
+    
+    # Create a table of weights
+    weights_table = html.Table(children=[
+            html.Tr(children=[
+                html.Th('Date'),
+                *[html.Th(col) for col in weights_df.columns]
+            ]),
+            *[html.Tr(children=[
+                html.Td(date),
+                *[html.Td(round(weights_df.loc[date, col], 4)) for col in weights_df.columns]
+            ]) for date in weights_df.index]
+        ])
+    
+    app = dash.Dash(__name__)
+    app.layout = html.Div(children=[
+        html.H1(children='Portfolio Returns'),
 
-plt.show()
+        dcc.Graph(
+            id='returns-chart',
+            figure=fig
+        ),
+
+        html.H2(children='Summary Statistics'),
+
+        returns_table,
+
+        html.H2(children='Weights'),
+
+        weights_table
+    ])
+
+    # Run the app
+    app.run_server(debug=False)
+
+    return app
+
+app = portfolio_returns_app(merged_df, weight_concat)
+app.run_server(debug=True)
