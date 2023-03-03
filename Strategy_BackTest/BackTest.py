@@ -11,6 +11,7 @@ from dateutil.relativedelta import relativedelta
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
+import dash_table
 import plotly.graph_objs as go
 from scipy.optimize import minimize
 from Trend_Following import dummy_L_df, ret, start, end, dummy_LS_df
@@ -311,8 +312,10 @@ ret_pct = ret.pct_change()
 df_dummy_sum = pd.DataFrame()
 ls = 1
 portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls)
-
-print(weight_concat)
+#weight_concat = weight_concat.loc[:weight_concat.index[-2]]
+this_month_weight = pd.DataFrame([])
+this_month_weight = weight_concat.iloc[-2]
+this_month_weight = pd.DataFrame([this_month_weight])
 weight_concat = weight_concat.drop(index=weight_concat.index[-1])
 ############################################################
 # Portfolio returns
@@ -340,8 +343,37 @@ merged_df = (1 + merged_df).cumprod() * 10000
 merged_df = merged_df.rename(columns={'Adj Close': 'SPY_Return'})
 print(merged_df)
 
+def generate_weights_table(weights_df):
+    weights_table = html.Table(
+        # set style to add borders and padding to the table
+        style={'border': '1px solid black', 'padding': '10px'},
+        children=[
+            # create table header row
+            html.Tr(
+                style={'background-color': 'grey', 'color': 'white'},
+                children=[
+                    html.Th('Asset'),
+                    *[html.Th(col, style={'text-align': 'center'}) for col in weights_df.columns]
+                ]
+            ),
+            # create table body rows
+            *[html.Tr(
+                children=[
+                    html.Td(index, style={'font-weight': 'bold'}),
+                    *[html.Td(round(weights_df.loc[index, col], 4), style={
+                        'text-align': 'center',
+                        'background-color': '#0DBF00' if weights_df.loc[index, col] > 0.5 
+                                     else '#9ACD32' if weights_df.loc[index, col] > 0.2 
+                                     else '#Dd6ff97' if weights_df.loc[index, col] > 0.03
+                                     else 'white'}) for col in weights_df.columns]
+                ]
+            ) for index in weights_df.index.strftime('%Y-%m-%d')]
+        ]
+    )
+    return weights_table
+
 #Something ain't right with something in the chart
-def portfolio_returns_app(returns_df, weights_df):
+def portfolio_returns_app(returns_df, weights_df, this_month_weight):
     # Calculate summary statistics for portfolio returns
     returns = returns_df.pct_change()
     returns.dropna(inplace=True)
@@ -350,6 +382,12 @@ def portfolio_returns_app(returns_df, weights_df):
     portfolio_sharpe_ratio = np.sqrt(252) * (portfolio_mean_returns / portfolio_std_returns)
     portfolio_monthly_sharpe_ratio = np.sqrt(12) * (portfolio_mean_returns / portfolio_std_returns)
 
+    # Calculate monthly Sharpe ratio for last month
+
+    last_month_returns = returns.loc[returns.index.month == returns.index[-2].month]
+    last_month_mean_returns = last_month_returns['portfolio_return'].mean()
+    last_month_std_returns = last_month_returns['portfolio_return'].std()
+    last_month_sharpe_ratio = np.sqrt(12) * (last_month_mean_returns / last_month_std_returns)
     # Create a line chart of portfolio and benchmark returns
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=returns_df.index, y=returns_df['portfolio_return'], mode='lines', name='Portfolio Return'))
@@ -374,50 +412,44 @@ def portfolio_returns_app(returns_df, weights_df):
             ]),
             html.Tr(children=[
                 html.Td('Sharpe Ratio'),
-                html.Td('Portfolio: ' + str(round(portfolio_sharpe_ratio, 4))),
-                html.Td('SPY: ' + str(round(np.sqrt(252) * (returns['SPY_Return'].mean() / returns['SPY_Return'].std()), 4)))
+                html.Td(str(round(portfolio_sharpe_ratio, 4))),
+                html.Td(str(round(np.sqrt(252) * (returns['SPY_Return'].mean() / returns['SPY_Return'].std()), 4)))
             ]),
             html.Tr(children=[
-                html.Td('Monthly Sharpe Ratio'),
-                html.Td('Portfolio: ' + str(round(portfolio_monthly_sharpe_ratio, 4))),
-                html.Td('SPY: ' + str(round(np.sqrt(12) * (returns['SPY_Return'].mean() / returns['SPY_Return'].std()), 4)))
+                html.Td('L/M sharpe Ratio'),
+                html.Td(str(round(last_month_sharpe_ratio, 4))),
+                html.Td(str(round(np.sqrt(252) * (last_month_returns['SPY_Return'].mean() / last_month_returns['SPY_Return'].std()), 4)))
             ])
         ])
     
+    
     # Create a table of weights
-    weights_table = html.Table(children=[
-            html.Tr(children=[
-                html.Th('Date'),
-                *[html.Th(col) for col in weights_df.columns]
-            ]),
-            *[html.Tr(children=[
-                html.Td(date),
-                *[html.Td(round(weights_df.loc[date, col], 4)) for col in weights_df.columns]
-            ]) for date in weights_df.index]
-        ])
     
     app = dash.Dash(__name__)
     app.layout = html.Div(children=[
-        html.H1(children='Portfolio Returns'),
+    html.H1(children='Portfolio Returns'),
 
-        dcc.Graph(
-            id='returns-chart',
-            figure=fig
-        ),
+    dcc.Graph(
+        id='returns-chart',
+        figure=fig
+    ),
+    html.H2(children='Weights'),
 
-        html.H2(children='Summary Statistics'),
+    generate_weights_table(weights_df),
 
-        returns_table,
+    html.H2(children="Next Month Weights"),
+    
+    generate_weights_table(this_month_weight),
 
-        html.H2(children='Weights'),
+    html.H2(children='Summary Statistics'),
 
-        weights_table
+    returns_table
+
     ])
-
     # Run the app
     app.run_server(debug=False)
 
     return app
 
-app = portfolio_returns_app(merged_df, weight_concat)
+app = portfolio_returns_app(merged_df, weight_concat, this_month_weight)
 app.run_server(debug=True)
