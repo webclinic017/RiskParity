@@ -14,6 +14,7 @@ import dash_html_components as html
 import dash_table
 import plotly.graph_objs as go
 from scipy.optimize import minimize
+import concurrent.futures
 from Trend_Following import dummy_L_df, ret, start, end, dummy_LS_df
 warnings.filterwarnings("ignore")
 
@@ -82,7 +83,7 @@ def optimize_risk_parity(Y, Ycov, counter, i):
 def monte_carlo(Y):
     log_return = np.log(Y/Y.shift(1))
     sample = Y.shape[0]
-    num_ports = 10000
+    num_ports = 1000
     all_weights = np.zeros((num_ports, len(Y.columns)))
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
@@ -241,6 +242,7 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls):
                     Y = ret[i:b]
                     Y_adjusted = asset_trimmer(b, dummy_L_df, Y)
                     if not Y_adjusted.empty:
+                        #w = threader(Y)
                         w = monte_carlo(Y_adjusted) #Long
                         next_i,next_b = next_month(i)
                         weight_concat = weightings(w, Y_adjusted, next_i, weight_concat)
@@ -293,6 +295,22 @@ def sentiment_index():
 ############################################################
 # Correlation matrix
 ############################################################
+
+def threader(Y):
+    num_threads = 8
+    w = monte_carlo(Y)
+    # split the data into num_threads chunks
+    chunks = np.array_split(Y, num_threads)
+
+    # create a ThreadPoolExecutor with num_threads workers
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=num_threads)
+
+    # submit a monte_carlo job for each chunk of data
+    futures = [executor.submit(threader, chunk) for chunk in chunks]
+
+    # wait for all jobs to complete
+    concurrent.futures.wait(futures)
+    return(w)
 
 def correlation_matrix(sharpe_array):
     corr_matrix = sharpe_array.corr()
