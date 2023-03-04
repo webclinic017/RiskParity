@@ -116,13 +116,13 @@ def monte_carlo(Y):
         sharpe_arr[ind] = ret_arr[ind]/vol_arr[ind]
     max_sh = sharpe_arr.argmax()
     #plot_frontier(vol_arr,ret_arr,sharpe_arr)
-
+    sharpe_ratio = ret_arr[max_sh]/vol_arr[max_sh]
     #To-do:
     #enable short selling
     #enable leverage
     #print(Y.columns)
     #print(all_weights[max_sh,:])
-    return all_weights[max_sh,:]
+    return all_weights[max_sh,:], sharpe_ratio
 
 def monte_carlo_SL(Y, short_df):
     log_return = np.log(Y/Y.shift(1))
@@ -215,10 +215,11 @@ def next_sharpe(weights, log_return, sharpe_list):
 # Backtesting
 ############################################################
 def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls):
-    y_next = pd.DataFrame([])
+    y_next                  = pd.DataFrame([])
     portfolio_return_concat = pd.DataFrame([])
-    portfolio_return  = pd.DataFrame([])
-    weight_concat = pd.DataFrame([])    
+    portfolio_return        = pd.DataFrame([])
+    weight_concat           = pd.DataFrame([])
+    sharpe_array_concat     = pd.DataFrame([])
     for i in rng_start:
         rng_end = pd.date_range(i, periods=1, freq='M')
         for b in rng_end:
@@ -226,8 +227,8 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls):
             if rng_start[-1] == i:
                 Y = ret[i:b]
                 Y_adjusted = asset_trimmer(b, dummy_L_df, Y)
-                w = monte_carlo(Y_adjusted)
-                weight_concat = weightings(w, Y_adjusted, i, weight_concat)
+                w, sharpe_ratio = monte_carlo(Y_adjusted)
+                weight_concat = weightings(w, Y_adjusted, i, weight_concat, sharpe_array_concat, sharpe_ratio)
             else:
                 if ls == 0:
                     Y_LS = ret[i:b]
@@ -243,37 +244,42 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls):
                     Y_adjusted = asset_trimmer(b, dummy_L_df, Y)
                     if not Y_adjusted.empty:
                         #w = threader(Y)
-                        w = monte_carlo(Y_adjusted) #Long
+                        w, sharpe_ratio = monte_carlo(Y_adjusted) #Long
                         next_i,next_b = next_month(i)
-                        weight_concat = weightings(w, Y_adjusted, next_i, weight_concat)
+                        weight_concat = weightings(w, Y_adjusted, next_i, weight_concat, sharpe_array_concat, sharpe_ratio)
                         y_next = ret_pct[next_i:next_b]
                         Y_adjusted_next_L = asset_trimmer(b, dummy_L_df, y_next) #Long
                         portfolio_return = portfolio_returns(w, Y_adjusted_next_L, b) #Long
                 portfolio_return_concat = pd.concat([portfolio_return, portfolio_return_concat], axis=0) #Long
-
+                    
+    print(weight_concat)
     return portfolio_return_concat, weight_concat
 
+
+
 def asset_trimmer_LS(b, df_monthly, Y):
-        df_split_monthly = df_monthly[b:b]
-        print("are we here???")
-        cols_to_drop = [col for col in df_split_monthly.columns if (-0.8 < df_split_monthly[col].max() < 0.8)]
-        print("Trend DF", df_split_monthly.drop(columns=cols_to_drop))
-        Y = Y.drop(columns=cols_to_drop)
-        return Y
+    df_split_monthly = df_monthly[b:b]
+    print("are we here???")
+    cols_to_drop = [col for col in df_split_monthly.columns if (-0.8 < df_split_monthly[col].max() < 0.8)]
+    print("Trend DF", df_split_monthly.drop(columns=cols_to_drop))
+    Y = Y.drop(columns=cols_to_drop)
+    return Y
 
 def asset_trimmer(b, df_monthly, Y):
-        df_split_monthly = df_monthly[b:b]
-        cols_to_drop = [col for col in df_split_monthly.columns if df_split_monthly[col].max() < 0.8]
-        Y = Y.drop(columns=cols_to_drop)
-        return Y
+    df_split_monthly = df_monthly[b:b]
+    cols_to_drop = [col for col in df_split_monthly.columns if df_split_monthly[col].max() < 0.8]
+    Y = Y.drop(columns=cols_to_drop)
+    return Y
 
-def weightings(w, Y_adjusted, i, weight_concat):
+def weightings(w, Y_adjusted, i, weight_concat, sharpe_array_concat, sharpe_ratio):
     w_df = pd.DataFrame(w).T
     w_df.columns = Y_adjusted.columns
-    z = w_df
     w_df['date'] = w_df.index
     w_df['date'] = i
     w_df.set_index('date', inplace=True)
+    sharpe_array = w_df
+    sharpe_array['sharpe'] = sharpe_ratio
+    sharpe_array_concat = pd.concat([sharpe_array_concat, sharpe_array])
     weight_concat = pd.concat([weight_concat,w_df]).fillna(0)
     return weight_concat
 
@@ -331,6 +337,13 @@ df_dummy_sum = pd.DataFrame()
 ls = 1
 portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls)
 #weight_concat = weight_concat.loc[:weight_concat.index[-2]]
+print("weight_concat",weight_concat)
+sharpe_array = pd.DataFrame([])
+sharpe_array = weight_concat
+weight_concat.drop('sharpe', axis=1, inplace=True)
+
+print("sharpe_array", sharpe_array)
+
 this_month_weight = pd.DataFrame([])
 this_month_weight = weight_concat.iloc[-2]
 this_month_weight = pd.DataFrame([this_month_weight])
@@ -338,7 +351,6 @@ weight_concat = weight_concat.drop(index=weight_concat.index[-1])
 ############################################################
 # Portfolio returns
 ############################################################
-
 #def returns_normalizer(asset):
 
 portfolio_return_concat = pd.DataFrame(pd.DataFrame(portfolio_return_concat))
