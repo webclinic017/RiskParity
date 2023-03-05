@@ -11,9 +11,7 @@ from dateutil.relativedelta import relativedelta
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-import dash_table
 import plotly.graph_objs as go
-from scipy.optimize import minimize
 import concurrent.futures
 import plotly.express as px
 from Trend_Following import dummy_L_df, ret, start, end, dummy_LS_df, number_of_iter
@@ -49,34 +47,6 @@ method_mu ='hist' # Method to estimate expected returns based on historical data
 method_cov ='hist' # Method to estimate covariance matrix based on historical data.
 
 ############################################################
-# Calculate assets returns
-############################################################
-
-def optimize_risk_parity(Y, Ycov, counter, i):
-    n = Y.shape[1]
-    # Define the risk contribution as a constraint
-    def risk_contribution(w):
-        sigma = np.sqrt(np.matmul(np.matmul(w, Ycov), w))
-        return (np.matmul(w, Ycov) * w) / sigma
-    # Define the optimization objective
-    def objective(w):
-        return -np.sum(w * Y.mean())
-    # Define the optimization constraints
-    cons = [{'type': 'eq', 'fun': lambda w: np.sum(w) - 1},
-            {'type': 'ineq', 'fun': lambda w: np.sum(risk_contribution(w)) - (1/n)},
-            {'type': 'ineq', 'fun': lambda w: np.sum(w[:counter] > 0.05) -counter},
-            {'type': 'ineq', 'fun': lambda w: 3 - np.sum(w > 0)},
-            ]
-    bounds = [(0, 1) for i in range(n)]
-    # Call the optimization solver
-    res = minimize(objective, np.ones(n)/n, constraints=cons, bounds=bounds, method='SLSQP',
-                   options={'disp': False, 'eps': 1e-12, 'maxiter': 10000})
-    print(res.message)
-
-    print(res.success)
-    return res.x
-
-############################################################
 # Setting up empty DFs
 ############################################################
 
@@ -84,6 +54,7 @@ merged_df = pd.DataFrame([])
 sharpe_array = pd.DataFrame([])
 df_dummy_sum = pd.DataFrame()
 df_dummy_sum = pd.DataFrame()
+this_month_weight = pd.DataFrame([])
 
 ############################################################
 # Monte carlo
@@ -92,7 +63,7 @@ df_dummy_sum = pd.DataFrame()
 def monte_carlo(Y):
     log_return = np.log(Y/Y.shift(1))
     sample = Y.shape[0]
-    num_ports = number_of_iter
+    num_ports = number_of_iter * 10
     all_weights = np.zeros((num_ports, len(Y.columns)))
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
@@ -255,7 +226,15 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls):
                 portfolio_return_concat = pd.concat([portfolio_return, portfolio_return_concat], axis=0) #Long
     return portfolio_return_concat, weight_concat
 
+# Function to drop if the asset is not trending.
+    # I guess the next step is to set up if statement so we can just have both functions working with an "if"
+def asset_trimmer(b, df_monthly, Y):
+    df_split_monthly = df_monthly[b:b]
+    cols_to_drop = [col for col in df_split_monthly.columns if df_split_monthly[col].max() < 0.8]
+    Y = Y.drop(columns=cols_to_drop)
+    return Y
 
+# This is the LS version of above, needs sorting, low prio.
 
 def asset_trimmer_LS(b, df_monthly, Y):
     df_split_monthly = df_monthly[b:b]
@@ -264,12 +243,7 @@ def asset_trimmer_LS(b, df_monthly, Y):
     print("Trend DF", df_split_monthly.drop(columns=cols_to_drop))
     Y = Y.drop(columns=cols_to_drop)
     return Y
-
-def asset_trimmer(b, df_monthly, Y):
-    df_split_monthly = df_monthly[b:b]
-    cols_to_drop = [col for col in df_split_monthly.columns if df_split_monthly[col].max() < 0.8]
-    Y = Y.drop(columns=cols_to_drop)
-    return Y
+# Function to manage weights.
 
 def weightings(w, Y_adjusted, i, weight_concat, sharpe_array_concat, sharpe_ratio):
     w_df = pd.DataFrame(w).T
@@ -283,6 +257,8 @@ def weightings(w, Y_adjusted, i, weight_concat, sharpe_array_concat, sharpe_rati
     weight_concat = pd.concat([weight_concat,w_df]).fillna(0)
     return weight_concat
 
+# Function to calculate portfolio returns
+
 def portfolio_returns(w, Y_adjusted_next, b):
     df_daily_return = w.T*Y_adjusted_next
 
@@ -290,18 +266,7 @@ def portfolio_returns(w, Y_adjusted_next, b):
     
     return df_portfolio_return
 
-def returns_functions():
-    print("need to sort this out")
-
-def sentiment_index():
-    print("this is for building my sentiment index")
-    #I need to build a sentiment index. 2021 was bull market for sure. For Jan 2022, I sold out so that is bear market.
-    #For 2023 I think its a sideways market with 4k ES price.x
-
-############################################################
-# Correlation matrix
-############################################################
-
+# Multithreading, this needs to be sorted soon.
 def threader(Y):
     num_threads = 8
     w = monte_carlo(Y)
@@ -318,39 +283,35 @@ def threader(Y):
     concurrent.futures.wait(futures)
     return(w)
 
+# Correlation matrix used in the plotly dash.
+
 def correlation_matrix(sharpe_array):
     corr_matrix = sharpe_array.corr()
     corr_matrix = corr_matrix['sharpe']
     return corr_matrix
+
 ############################################################
 # Calling my functions
 ############################################################
 ret_pct = ret.pct_change()
 
-# Need to determine how to merge these 2 dfs
+ls = 1 # Dummy for long short, shorting needs to be shorted out, but not high prio.
 
-ls = 1
+# Data management of weights and returns.
 portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls)
 
-#weight_concat = weight_concat.loc[:weight_concat.index[-2]]
 sharpe_array = weight_concat.copy()
 weight_concat.drop('sharpe', axis=1, inplace=True)
 
-
-this_month_weight = pd.DataFrame([])
 this_month_weight = weight_concat.iloc[-2]
 this_month_weight = pd.DataFrame([this_month_weight])
 weight_concat = weight_concat.drop(index=weight_concat.index[-1])
+
 ############################################################
-# Portfolio returns
+# Spy returns & portfolio returns
 ############################################################
-#def returns_normalizer(asset):
 
 portfolio_return_concat = pd.DataFrame(pd.DataFrame(portfolio_return_concat))
-
-############################################################
-# Spy returns
-############################################################
 
 Bench_start = portfolio_return_concat.index.min()
 Bench_end   = portfolio_return_concat.index.max()
@@ -364,6 +325,8 @@ merged_df.iloc[0] = 0
 merged_df = (1 + merged_df).cumprod() * 10000
 
 merged_df = merged_df.rename(columns={'Adj Close': 'SPY_Return'})
+
+# Generate the table of weights
 
 def generate_weights_table(weights_df):
     weights_table = html.Table(
@@ -407,7 +370,10 @@ def generate_weights_table(weights_df):
         ]
     )
     return weights_table
-#Something ain't right with something in the chart
+
+
+#   Create the plotly dash
+
 def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_array):
     # Calculate summary statistics for portfolio returns
     num_years = (returns_df.index.max() - returns_df.index.min()).days / 365
@@ -420,13 +386,13 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
     Portfolio_Net_Returns = returns['portfolio_return'].mean()* num_days
     Portfolio_Average_Returns = returns['portfolio_return'].mean() * average_number_days
     Portfolio_std = returns['portfolio_return'].std() * average_number_days
-    Portfolio_Sharpe_Ratio =  Portfolio_Average_Returns / Portfolio_std
-
+    Portfolio_Sharpe_Ratio =  np.sqrt(average_number_days) * (Portfolio_Average_Returns / Portfolio_std)
+    #something is suss with these sharpes???
     #SPY data:
     SPY_Net_Returns = returns['SPY_Return'].mean()*num_days
     SPY_Average_Returns = returns['SPY_Return'].mean() * average_number_days
     SPY_std = returns['SPY_Return'].std() * average_number_days
-    SPY_Sharpe_Ratio = SPY_Average_Returns / SPY_std
+    SPY_Sharpe_Ratio = np.sqrt(average_number_days) * (SPY_Average_Returns / SPY_std)
     
     # Calculate monthly Sharpe ratio for last month
 
