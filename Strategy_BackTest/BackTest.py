@@ -19,11 +19,10 @@ import plotly.express as px
 from Trend_Following import dummy_L_df, ret, start, end, dummy_LS_df, number_of_iter
 warnings.filterwarnings("ignore")
 
+############################################################
+# Variables and setup
+############################################################
 
-# Load portfolio returns data into a D
-#from datamanagement import excel_download, datamanagement_1, data_management_2
-
-# Date range
 
 counter = 4
 
@@ -76,6 +75,15 @@ def optimize_risk_parity(Y, Ycov, counter, i):
 
     print(res.success)
     return res.x
+
+############################################################
+# Setting up empty DFs
+############################################################
+
+merged_df = pd.DataFrame([])
+sharpe_array = pd.DataFrame([])
+df_dummy_sum = pd.DataFrame()
+df_dummy_sum = pd.DataFrame()
 
 ############################################################
 # Monte carlo
@@ -185,7 +193,6 @@ def plot_frontier(vol_arr,ret_arr,sharpe_arr):
 rng_start = pd.date_range(start, periods=months_between, freq='MS')
 
 def next_month(i):
-    #next_i = i + pd.Timedelta(days=31)
     i_str = i.strftime('%Y-%m')
     dt = datetime.strptime(i_str, '%Y-%m')
     next_month = dt + relativedelta(months=1)
@@ -193,12 +200,6 @@ def next_month(i):
     next_b = pd.date_range(start=next_i, periods=1, freq='M')
     next_b = next_b[0]
     return next_i,next_b
-
-############################################################
-# Setting up empty DFs
-############################################################
-
-merged_df = pd.DataFrame([])
 
 ############################################################
 # Calculate sharpe for next month
@@ -318,9 +319,7 @@ def threader(Y):
     return(w)
 
 def correlation_matrix(sharpe_array):
-    print(sharpe_array)
     corr_matrix = sharpe_array.corr()
-    print(corr_matrix)
     corr_matrix = corr_matrix['sharpe']
     return corr_matrix
 ############################################################
@@ -330,12 +329,10 @@ ret_pct = ret.pct_change()
 
 # Need to determine how to merge these 2 dfs
 
-df_dummy_sum = pd.DataFrame()
 ls = 1
 portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls)
 
 #weight_concat = weight_concat.loc[:weight_concat.index[-2]]
-sharpe_array = pd.DataFrame([])
 sharpe_array = weight_concat.copy()
 weight_concat.drop('sharpe', axis=1, inplace=True)
 
@@ -367,31 +364,44 @@ merged_df.iloc[0] = 0
 merged_df = (1 + merged_df).cumprod() * 10000
 
 merged_df = merged_df.rename(columns={'Adj Close': 'SPY_Return'})
-print(merged_df)
 
 def generate_weights_table(weights_df):
     weights_table = html.Table(
-        # set style to add borders and padding to the table
         style={'border': '1px solid black', 'padding': '10px'},
         children=[
             # create table header row
             html.Tr(
-                style={'background-color': 'grey', 'color': 'white'},
+                style={'background-color': 'grey',                              #Header
+                       'color': 'white',
+                       'border': '120px solid black',
+                       'padding': '120px',
+                       'font-family': 'Arial',
+                       'font-size': '14px'},
                 children=[
-                    html.Th('Asset'),
+                    html.Th('Date:'),
                     *[html.Th(col, style={'text-align': 'center'}) for col in weights_df.columns]
                 ]
             ),
             # create table body rows
             *[html.Tr(
                 children=[
-                    html.Td(index, style={'font-weight': 'bold'}),
-                    *[html.Td(round(weights_df.loc[index, col], 4), style={
+                    html.Td(index, style={'font-weight': 'bold',                #Left index
+                                          'border': '1px solid black',
+                                          'padding': '1px',
+                                          'font-family': 'Arial',
+                                          'font-size': '14px',}),
+                    *[html.Td(round(weights_df.loc[index, col], 4), style={     #Table content
                         'text-align': 'center',
+                        'border': '1px solid grey',
+                        'padding': '1px',
+                        'font-family': 'Arial',
+                        'font-size': '12px',
                         'background-color': '#0DBF00' if weights_df.loc[index, col] > 0.5 
-                                     else '#9ACD32' if weights_df.loc[index, col] > 0.2 
-                                     else '#Dd6ff97' if weights_df.loc[index, col] > 0.03
-                                     else 'white'}) for col in weights_df.columns],
+                                       else '#9ACD32' if weights_df.loc[index, col] > 0.2 
+                                       else '#6FD17A' if weights_df.loc[index, col] > 0.1
+                                       else '#D6FF97' if weights_df.loc[index, col] > 0.04
+                                       else 'white'}) for col in weights_df.columns],
+
                 ]
             ) for index in weights_df.index.strftime('%Y-%m-%d')]
         ]
@@ -400,13 +410,24 @@ def generate_weights_table(weights_df):
 #Something ain't right with something in the chart
 def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_array):
     # Calculate summary statistics for portfolio returns
+    num_years = (returns_df.index.max() - returns_df.index.min()).days / 365
+    num_days = len(returns_df)
+    average_number_days = num_days/num_years
     returns = returns_df.pct_change()
     returns.dropna(inplace=True)
-    portfolio_mean_returns = returns['portfolio_return'].mean()
-    portfolio_std_returns = returns['portfolio_return'].std()
-    portfolio_sharpe_ratio = np.sqrt(252) * (portfolio_mean_returns / portfolio_std_returns)
-    portfolio_monthly_sharpe_ratio = np.sqrt(12) * (portfolio_mean_returns / portfolio_std_returns)
 
+    #Portfolio data:
+    Portfolio_Net_Returns = returns['portfolio_return'].mean()* num_days
+    Portfolio_Average_Returns = returns['portfolio_return'].mean() * average_number_days
+    Portfolio_std = returns['portfolio_return'].std() * average_number_days
+    Portfolio_Sharpe_Ratio =  Portfolio_Average_Returns / Portfolio_std
+
+    #SPY data:
+    SPY_Net_Returns = returns['SPY_Return'].mean()*num_days
+    SPY_Average_Returns = returns['SPY_Return'].mean() * average_number_days
+    SPY_std = returns['SPY_Return'].std() * average_number_days
+    SPY_Sharpe_Ratio = SPY_Average_Returns / SPY_std
+    
     # Calculate monthly Sharpe ratio for last month
 
     last_month_returns = returns.loc[returns.index.month == returns.index[-2].month]
@@ -437,23 +458,28 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
     returns_table = html.Table(children=[
             html.Tr(children=[
                 html.Th('Statistic'),
-                html.Th('Portfolio Returns'),
-                html.Th('SPY Returns')
+                html.Th('Portfolio'),
+                html.Th('SPY')
             ]),
             html.Tr(children=[
-                html.Td('Mean Returns'),
-                html.Td(round(portfolio_mean_returns, 4)),
-                html.Td(round(returns['SPY_Return'].mean(), 4))
+                html.Td('Net Returns'),
+                html.Td(round(Portfolio_Net_Returns, 4)),
+                html.Td(round(SPY_Net_Returns, 4)),
+            ]),
+            html.Tr(children=[
+                html.Td('Avg Yr Returns'),
+                html.Td(round(Portfolio_Net_Returns / num_years, 4)),
+                html.Td(round(SPY_Net_Returns / num_years, 4))
             ]),
             html.Tr(children=[
                 html.Td('Std Returns'),
-                html.Td(round(portfolio_std_returns, 4)),
-                html.Td(round(returns['SPY_Return'].std(), 4))
+                html.Td(round(Portfolio_std, 4)),
+                html.Td(round(SPY_std, 4))
             ]),
             html.Tr(children=[
                 html.Td('Sharpe Ratio'),
-                html.Td(str(round(portfolio_sharpe_ratio, 4))),
-                html.Td(str(round(np.sqrt(252) * (returns['SPY_Return'].mean() / returns['SPY_Return'].std()), 4)))
+                html.Td(str(round(Portfolio_Sharpe_Ratio, 4))),
+                html.Td(str(round(SPY_Sharpe_Ratio, 4)))
             ]),
             html.Tr(children=[
                 html.Td('L/M sharpe Ratio'),
@@ -461,10 +487,7 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
                 html.Td(str(round(np.sqrt(252) * (last_month_returns['SPY_Return'].mean() / last_month_returns['SPY_Return'].std()), 4)))
             ])
         ])
-    
-    
-    # Create a table of weights
-    
+       
     app = dash.Dash(__name__)
     app.layout = html.Div(children=[
     html.H1(children='Portfolio Returns'),
@@ -486,12 +509,12 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
 
     html.H2(children='Correlation Matrix'),
     dcc.Graph(id='correlation-matrix', figure={'data': data},
-            style={'width': '40vh', 'height': '90vh'}
+            style={'width': '40vh',
+                   'height': '90vh',
+                   'font-family': 'Arial',
+                   'font-size': '12px',}
             )
     ])
-    # Run the app
-    #app.run_server(debug=False)
-
     return app
 
 app = portfolio_returns_app(merged_df, weight_concat, this_month_weight, sharpe_array)
