@@ -15,7 +15,8 @@ import dash_table
 import plotly.graph_objs as go
 from scipy.optimize import minimize
 import concurrent.futures
-from Trend_Following import dummy_L_df, ret, start, end, dummy_LS_df
+import plotly.express as px
+from Trend_Following import dummy_L_df, ret, start, end, dummy_LS_df, number_of_iter
 warnings.filterwarnings("ignore")
 
 
@@ -83,7 +84,7 @@ def optimize_risk_parity(Y, Ycov, counter, i):
 def monte_carlo(Y):
     log_return = np.log(Y/Y.shift(1))
     sample = Y.shape[0]
-    num_ports = 1000
+    num_ports = number_of_iter
     all_weights = np.zeros((num_ports, len(Y.columns)))
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
@@ -251,8 +252,6 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls):
                         Y_adjusted_next_L = asset_trimmer(b, dummy_L_df, y_next) #Long
                         portfolio_return = portfolio_returns(w, Y_adjusted_next_L, b) #Long
                 portfolio_return_concat = pd.concat([portfolio_return, portfolio_return_concat], axis=0) #Long
-                    
-    print(weight_concat)
     return portfolio_return_concat, weight_concat
 
 
@@ -319,13 +318,11 @@ def threader(Y):
     return(w)
 
 def correlation_matrix(sharpe_array):
+    print(sharpe_array)
     corr_matrix = sharpe_array.corr()
-    corr_matrix = corr_matrix['Sharpe_ratio']
-    plt.figure(figsize=(6, 6))
-    sns.heatmap(corr_matrix.to_frame(), annot=True, cmap='coolwarm')
-    plt.title('Correlation Matrix')
-    plt.show()
-
+    print(corr_matrix)
+    corr_matrix = corr_matrix['sharpe']
+    return corr_matrix
 ############################################################
 # Calling my functions
 ############################################################
@@ -336,13 +333,12 @@ ret_pct = ret.pct_change()
 df_dummy_sum = pd.DataFrame()
 ls = 1
 portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls)
+
 #weight_concat = weight_concat.loc[:weight_concat.index[-2]]
-print("weight_concat",weight_concat)
 sharpe_array = pd.DataFrame([])
-sharpe_array = weight_concat
+sharpe_array = weight_concat.copy()
 weight_concat.drop('sharpe', axis=1, inplace=True)
 
-print("sharpe_array", sharpe_array)
 
 this_month_weight = pd.DataFrame([])
 this_month_weight = weight_concat.iloc[-2]
@@ -395,15 +391,14 @@ def generate_weights_table(weights_df):
                         'background-color': '#0DBF00' if weights_df.loc[index, col] > 0.5 
                                      else '#9ACD32' if weights_df.loc[index, col] > 0.2 
                                      else '#Dd6ff97' if weights_df.loc[index, col] > 0.03
-                                     else 'white'}) for col in weights_df.columns]
+                                     else 'white'}) for col in weights_df.columns],
                 ]
             ) for index in weights_df.index.strftime('%Y-%m-%d')]
         ]
     )
     return weights_table
-
 #Something ain't right with something in the chart
-def portfolio_returns_app(returns_df, weights_df, this_month_weight):
+def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_array):
     # Calculate summary statistics for portfolio returns
     returns = returns_df.pct_change()
     returns.dropna(inplace=True)
@@ -422,7 +417,22 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight):
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=returns_df.index, y=returns_df['portfolio_return'], mode='lines', name='Portfolio Return'))
     fig.add_trace(go.Scatter(x=returns_df.index, y=returns_df['SPY_Return'], mode='lines', name='SPY Returns'))
+    corr_matrix = correlation_matrix(sharpe_array)
+    corr_matrix = corr_matrix.to_frame()
+    corr_matrix = corr_matrix.sort_values(by='sharpe', ascending=True)
 
+    data = [go.Heatmap(z=corr_matrix.values,
+                   x=corr_matrix.columns,
+                   y=corr_matrix.index,
+                   colorscale='RdBu',
+                   hoverongaps=False,
+                   hovertemplate='%{y}: %{x}<br>Correlation: %{z:.2f}<extra></extra>',
+                   showscale=True,
+                   zmin=-1,
+                   zmax=1,
+                   text=corr_matrix.round(2).values.astype(str),
+                   texttemplate="%{text}",
+                   textfont={"size":10})]
     # Create a table of summary statistics for portfolio and benchmark returns
     returns_table = html.Table(children=[
             html.Tr(children=[
@@ -471,15 +481,18 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight):
     
     generate_weights_table(this_month_weight),
 
-    html.H2(children='Summary Statistics'),
+    html.H2(children='Summary Statistics', style={'font-size': '24px'}),
+    returns_table,
 
-    returns_table
-
+    html.H2(children='Correlation Matrix'),
+    dcc.Graph(id='correlation-matrix', figure={'data': data},
+            style={'width': '40vh', 'height': '90vh'}
+            )
     ])
     # Run the app
-    app.run_server(debug=False)
+    #app.run_server(debug=False)
 
     return app
 
-app = portfolio_returns_app(merged_df, weight_concat, this_month_weight)
-app.run_server(debug=True)
+app = portfolio_returns_app(merged_df, weight_concat, this_month_weight, sharpe_array)
+app.run_server(debug=False)
