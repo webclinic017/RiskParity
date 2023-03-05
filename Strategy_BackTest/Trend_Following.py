@@ -11,16 +11,6 @@ prices, asset_classes, asset = datamanagement_1(start, end)
 ret = data_management_2(prices, asset_classes, asset)
 
 def calculate_rolling_average(ret, window):
-    """
-    Calculates the rolling average of a DataFrame with a given window size.
-
-    Args:
-        df (pandas.DataFrame): The DataFrame to calculate the rolling average for.
-        window (int): The size of the window to use for the rolling average calculation.
-
-    Returns:
-        pandas.DataFrame: A new DataFrame with the rolling averages for each column.
-    """
     rolling_df = pd.DataFrame()
     for column in ret.columns:
         rolling_df[column] = ret[column].rolling(window=window).mean()
@@ -44,8 +34,6 @@ def dummy_sma(rolling_df, ret):
         dummy_LS_df[asset_name] = np.where(rolling_df[asset_name] < ret[asset_name], 0, -1)
     dummy_L_df  = dummy_L_df.resample('M').mean()
     dummy_LS_df = dummy_LS_df.resample('M').mean()
-    print(dummy_L_df)
-    print(dummy_LS_df)
     return dummy_L_df, dummy_LS_df
 
 rolling_df = calculate_rolling_average(ret, min(200, len(ret)))
