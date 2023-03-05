@@ -453,3 +453,12 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
 
 app = portfolio_returns_app(merged_df, weight_concat, this_month_weight, sharpe_array)
 app.run_server(debug=False)
+
+'''
+Next steps:
+-Enable short selling.
+-Enable leverage.
+-Instead of just printing the W of the best sharpe ratio, show me the top 10 (not strictly 10, but the principal counts) sharpes W and show me the average top 10,
+-More assets enabled.
+-More asset selection culling.
+'''
