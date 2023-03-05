@@ -440,7 +440,7 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
 
     html.H2(children='Summary Statistics', style={'font-size': '24px'}),
     returns_table,
-
+    #I would like the index to be the ticker, and the hover on the chart to be the full asset name, it would also be nice in the weights table.
     html.H2(children='Correlation Matrix'),
     dcc.Graph(id='correlation-matrix', figure={'data': data},
             style={'width': '40vh',
@@ -461,4 +461,5 @@ Next steps:
 -Instead of just printing the W of the best sharpe ratio, show me the top 10 (not strictly 10, but the principal counts) sharpes W and show me the average top 10,
 -More assets enabled.
 -More asset selection culling.
+-Hovering of asset names on the weights table and the correlation matrix.
 '''
