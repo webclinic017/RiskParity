@@ -5,6 +5,16 @@ from scipy.optimize import minimize
 
 counter = 4
 
+Model='Classic' # Could be Classic (historical), BL (Black Litterman) or FM (Factor Model)
+Rm = 'MV' # Risk measure used, this time will be variance
+Obj = 'Sharpe' # Objective function, could be MinRisk, MaxRet, Utility or Sharpe
+Hist = True # Use historical scenarios for risk measures that depend on scenarios
+Rf = 0.04 # Risk free rate
+L = 1 # Risk aversion factor, only useful when obj is 'Utility'
+Points = 50 # Number of points of the frontier
+method_mu ='hist' # Method to estimate expected returns based on historical data.
+method_cov ='hist' # Method to estimate covariance matrix based on historical data.
+
 def optimize_risk_parity(Y, Ycov, counter, i):
     n = Y.shape[1]
     # Define the risk contribution as a constraint

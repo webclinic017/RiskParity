@@ -3,7 +3,6 @@ import datetime
 import yfinance as yf
 import numpy as np 
 import warnings
-import seaborn as sns
 import matplotlib.pyplot as plt
 from datetime import datetime
 from calendar import monthrange
@@ -13,7 +12,6 @@ import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
 import concurrent.futures
-import plotly.express as px
 from Trend_Following import dummy_L_df, ret, Start, End, dummy_LS_df, number_of_iter
 warnings.filterwarnings("ignore")
 
@@ -28,17 +26,6 @@ diff = relativedelta(date2, date1)
 Start_bench = date1 + relativedelta(months=1)
 
 months_between = (diff.years)*12 + diff.months + 1
-# Tickers of assets
-
-Model='Classic' # Could be Classic (historical), BL (Black Litterman) or FM (Factor Model)
-Rm = 'MV' # Risk measure used, this time will be variance
-Obj = 'Sharpe' # Objective function, could be MinRisk, MaxRet, Utility or Sharpe
-Hist = True # Use historical scenarios for risk measures that depend on scenarios
-Rf = 0.04 # Risk free rate
-L = 1 # Risk aversion factor, only useful when obj is 'Utility'
-Points = 50 # Number of points of the frontier
-method_mu ='hist' # Method to estimate expected returns based on historical data.
-method_cov ='hist' # Method to estimate covariance matrix based on historical data.
 
 ############################################################
 # Setting up empty DFs
@@ -62,13 +49,6 @@ def monte_carlo(Y):
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
     sharpe_arr = np.zeros(num_ports)
-    """
-    next step, allow short selling, so that the sum of weights must be [-1,1]
-
-    To do this, I suspect I will need to impliment the short trend, whereby if the asset is in a short trend, then we can ONLY sell it.
-    So, I will need to set up a new asset returns (Y) containing assets that can be both long and short, and another df outlining if they are long or short.
-
-    """
 
     for ind in range(num_ports): 
         # weights 
@@ -94,8 +74,6 @@ def monte_carlo(Y):
     #To-do:
     #enable short selling
     #enable leverage
-    #print(Y.columns)
-    #print(all_weights[max_sh,:])
     return all_weights[max_sh,:], sharpe_ratio
 
 def monte_carlo_SL(Y, short_df):
@@ -145,17 +123,14 @@ def plot_frontier(vol_arr,ret_arr,sharpe_arr):
     # plot the dataplt.figure(figsize=(12,8))
     plt.xlabel('Volatility')
     plt.ylabel('Return')
-
-    # add a red dot for max_sr_vol & max_sr_ret
     plt.scatter(max_sr_vol, max_sr_ret, c='red', s=50, edgecolors='black')
-    #plt.scatter(max_sr_sr, max(vol_arr), c='green', s=50, edgecolors='black')
 
 ############################################################
 # Building a loop that estimate optimal portfolios on
 # rebalancing dates
 ############################################################
 
-rng_start = pd.date_range(start, periods=months_between, freq='MS')
+rng_start = pd.date_range(Start, periods=months_between, freq='MS')
 
 def next_month(i):
     i_str = i.strftime('%Y-%m')
@@ -310,14 +285,13 @@ portfolio_return_concat = pd.DataFrame(pd.DataFrame(portfolio_return_concat))
 Bench_start = portfolio_return_concat.index.min()
 Bench_end   = portfolio_return_concat.index.max()
 
-SPY = yf.download('SPY', start=Bench_start, Bench_end=end)['Adj Close'].pct_change()
+SPY = yf.download('SPY', start=Bench_start, Bench_end=End)['Adj Close'].pct_change()
 SPY = pd.DataFrame(pd.DataFrame(SPY))
 
 merged_df = SPY.merge(portfolio_return_concat, left_index=True, right_index=True)
 merged_df.iloc[0] = 0
 
 merged_df = (1 + merged_df).cumprod() * 10000
-
 merged_df = merged_df.rename(columns={'Adj Close': 'SPY_Return'})
 
 # Generate the table of weights
@@ -328,7 +302,7 @@ def generate_weights_table(weights_df):
         children=[
             # create table header row
             html.Tr(
-                style={'background-color': 'grey',                              #Header
+                style={'background-color': 'grey',                              # Header
                        'color': 'white',
                        'border': '120px solid black',
                        'padding': '120px',
@@ -342,12 +316,12 @@ def generate_weights_table(weights_df):
             # create table body rows
             *[html.Tr(
                 children=[
-                    html.Td(index, style={'font-weight': 'bold',                #Left index
+                    html.Td(index, style={'font-weight': 'bold',                # Left index
                                           'border': '1px solid black',
                                           'padding': '1px',
                                           'font-family': 'Arial',
                                           'font-size': '14px',}),
-                    *[html.Td(round(weights_df.loc[index, col], 4), style={     #Table content
+                    *[html.Td(round(weights_df.loc[index, col], 4), style={     # Table content
                         'text-align': 'center',
                         'border': '1px solid grey',
                         'padding': '1px',
@@ -366,7 +340,7 @@ def generate_weights_table(weights_df):
     return weights_table
 
 
-#   Create the plotly dash
+# Create the plotly dash
 
 def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_array):
     # Calculate summary statistics for portfolio returns
@@ -376,24 +350,24 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
     returns = returns_df.pct_change()
     returns.dropna(inplace=True)
 
-    #Portfolio data:
+    # Portfolio data:
     Portfolio_Net_Returns = returns['portfolio_return'].mean()* num_days
     Portfolio_Average_Returns = returns['portfolio_return'].mean() * average_number_days
     Portfolio_std = returns['portfolio_return'].std() * average_number_days
     Portfolio_Sharpe_Ratio =  np.sqrt(average_number_days) * (Portfolio_Average_Returns / Portfolio_std)
-    #something is suss with these sharpes???
-    #SPY data:
+    
+    # SPY data:
     SPY_Net_Returns = returns['SPY_Return'].mean()*num_days
     SPY_Average_Returns = returns['SPY_Return'].mean() * average_number_days
     SPY_std = returns['SPY_Return'].std() * average_number_days
     SPY_Sharpe_Ratio = np.sqrt(average_number_days) * (SPY_Average_Returns / SPY_std)
     
     # Calculate monthly Sharpe ratio for last month
-
     last_month_returns = returns.loc[returns.index.month == returns.index[-2].month]
     last_month_mean_returns = last_month_returns['portfolio_return'].mean()
     last_month_std_returns = last_month_returns['portfolio_return'].std()
     last_month_sharpe_ratio = np.sqrt(12) * (last_month_mean_returns / last_month_std_returns)
+    
     # Create a line chart of portfolio and benchmark returns
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=returns_df.index, y=returns_df['portfolio_return'], mode='lines', name='Portfolio Return'))
