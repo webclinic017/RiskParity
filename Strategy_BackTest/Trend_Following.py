@@ -3,11 +3,11 @@ import pandas as pd
 from datamanagement import *
 import numpy as np
 
-start = '2019-01-01'
-end = '2023-03-02'
+Start = '2019-01-01'
+End = '2023-03-02'
 number_of_iter = 10000
 
-prices, asset_classes, asset = datamanagement_1(start, end)
+prices, asset_classes, asset = datamanagement_1(Start, End)
 ret = data_management_2(prices, asset_classes, asset)
 
 def calculate_rolling_average(ret, window):

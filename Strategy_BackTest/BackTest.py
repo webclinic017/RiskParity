@@ -14,18 +14,12 @@ import dash_html_components as html
 import plotly.graph_objs as go
 import concurrent.futures
 import plotly.express as px
-from Trend_Following import dummy_L_df, ret, start, end, dummy_LS_df, number_of_iter
+from Trend_Following import dummy_L_df, ret, Start, End, dummy_LS_df, number_of_iter
 warnings.filterwarnings("ignore")
 
 ############################################################
 # Variables and setup
 ############################################################
-
-
-counter = 4
-
-Start = start
-End = end
 
 date1 = datetime.strptime(Start, "%Y-%m-%d")
 date2 = datetime.strptime(End, "%Y-%m-%d")

@@ -1,7 +1,9 @@
 import numpy as np
 import pandas as pd
-from BackTest import Y, YCov, counter, i
+from BackTest import Y, YCov, i
 from scipy.optimize import minimize
+
+counter = 4
 
 def optimize_risk_parity(Y, Ycov, counter, i):
     n = Y.shape[1]
