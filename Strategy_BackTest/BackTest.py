@@ -12,9 +12,9 @@ import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
 import concurrent.futures
-from Trend_Following import dummy_L_df, ret, Start, End, dummy_LS_df, number_of_iter
+from Trend_Following import dummy_L_df, ret, Start, End, dummy_LS_df, number_of_iter, asset
 warnings.filterwarnings("ignore")
-
+print(asset)
 ############################################################
 # Variables and setup
 ############################################################
