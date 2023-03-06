@@ -23,7 +23,7 @@ def datamanagement_1(start, end):
     asset_classes, asset = excel_download()
     df_list = []
     asset = list(set(asset))
-    print(asset)
+    print("HELLO", asset)
     for asset in asset:
         asset_2 = yf.download(asset, start=start, end=end)['Adj Close']
         df_list.append(pd.DataFrame(asset_2))
