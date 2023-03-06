@@ -46,17 +46,19 @@ def data_management_2(prices, asset_classes, asset):
     asset_classes = asset_classes.sort_values(by=['Asset'])
     return returns
 
-def get_full_name():
+def get_asset_names():
     asset_classes, asset = excel_download()
+    asset = list(set(asset))
     tickers = yf.Tickers(asset)
-    print(asset_classes)
-    for ticker in tickers:
+    data = []
+    for asset, ticker in zip(asset, tickers.tickers):
         if isinstance(ticker, str):
             asset_name = ticker
         else:
             ticker_info = ticker.info
             asset_name = ticker_info.get('longName', ticker_info.get('shortName', asset))
-    print(asset, asset_name)
-    return asset_name
-
-asset_name = get_full_name()
+        data.append([asset, asset_name])
+    df = pd.DataFrame(data, columns=['Ticker', 'Name'])
+    return df
+asset_name = get_asset_names()
+print(asset_name)
