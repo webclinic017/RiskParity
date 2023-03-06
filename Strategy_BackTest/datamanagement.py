@@ -22,15 +22,12 @@ def datamanagement_1(start, end):
     df_list = []
     asset = list(set(asset))
     print(asset)
-    tickers = yf.Tickers(asset)
+    tickers = yf.Tickers(asset).fast_info
 
     for asset, ticker in zip(asset, tickers.tickers):
         asset_2 = yf.download(asset, start=start, end=end)['Adj Close']
-        
-        ticker = ticker.fast_info
         df_list.append(pd.DataFrame(asset_2))
         asset_2 = pd.DataFrame(asset_2)
-        print(ticker)
     prices = pd.concat(df_list, axis=1)
     prices.columns = asset
     return prices, asset_classes, asset
