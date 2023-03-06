@@ -28,12 +28,6 @@ def datamanagement_1(start, end):
         asset_2 = yf.download(asset, start=start, end=end)['Adj Close']
         df_list.append(pd.DataFrame(asset_2))
         asset_2 = pd.DataFrame(asset_2)
-        if isinstance(ticker, str):
-            asset_name = ticker
-        else:
-            ticker_info = ticker.info
-            asset_name = ticker_info.get('longName', ticker_info.get('shortName', asset))
-        print(asset, asset_name)
     prices = pd.concat(df_list, axis=1)
     prices.columns = asset
     return prices, asset_classes, asset
@@ -45,19 +39,3 @@ def data_management_2(prices, asset_classes, asset):
     asset_classes = pd.DataFrame(asset_classes)
     asset_classes = asset_classes.sort_values(by=['Asset'])
     return returns
-
-def get_asset_names():
-    asset = ['AAPL', 'MSFT', 'AMZN']
-    #asset = list(set(asset))
-    data = []
-    for asset in asset:
-        ticker = yf.Ticker(asset)
-        ticker_info = ticker.info
-        asset_name = ticker_info.get('longName', '')
-        if asset_name == '':
-            asset_name = ticker_info.get('shortName', asset)
-        data.append([asset, asset_name])
-    df = pd.DataFrame(data, columns=['Ticker', 'Name'])
-    return df.set_index('Ticker')
-asset_name = get_asset_names()
-print(asset_name)
