@@ -12,9 +12,8 @@ import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
 import concurrent.futures
-from Trend_Following import dummy_L_df, ret, Start, End, dummy_LS_df, number_of_iter, asset
+from Trend_Following import dummy_L_df, ret, Start, End, dummy_LS_df, number_of_iter, asset_classes
 warnings.filterwarnings("ignore")
-print(asset)
 ############################################################
 # Variables and setup
 ############################################################
@@ -294,17 +293,24 @@ merged_df.iloc[0] = 0
 merged_df = (1 + merged_df).cumprod() * 10000
 merged_df = merged_df.rename(columns={'Adj Close': 'SPY_Return'})
 
-class Stock:
-    def __init__(self, ticker):
-        self.ticker = ticker
-        self.info = yf.Ticker(ticker).info
 
-    def get_full_name(self):
-        return self.info['longName']
+def long_names(asset_classes, weight):
+    mapping_dict = dict(zip(asset_classes['Asset'], asset_classes['Full_name']))
+    weight_long = weight.rename(columns=mapping_dict)
+    return weight_long
 
 # Generate the table of weights
+def df_merger(weights_df, weight_long):
+    for asset_df, asset_long in zip(weights_df, weight_long):
+        column_name = f"{asset_long} ({asset_df})"
+        weights_df.rename(columns={asset_df: column_name}, inplace=True)
+        weight_long.rename(columns={asset_long: column_name}, inplace=True)
+    return weights_df, weight_long
 
-def generate_weights_table(weights_df):
+def generate_weights_table(weights_df, asset_classes):
+    weight_long = long_names(asset_classes, weights_df)
+    weights_df2 = weights_df.copy()
+    weights_df, weight_long = df_merger(weights_df, weight_long)
     weights_table = html.Table(
         style={'border': '1px solid black', 'padding': '10px'},
         children=[
@@ -318,7 +324,7 @@ def generate_weights_table(weights_df):
                        'font-size': '14px'},
                 children=[
                     html.Th('Date:'),
-                    *[html.Th(col, style={'text-align': 'center'}) for col in weights_df.columns]
+                    *[html.Th(col, style={'text-align': 'center'}) for col in weights_df2.columns]
                 ]
             ),
             # create table body rows
@@ -339,9 +345,10 @@ def generate_weights_table(weights_df):
                                        else '#9ACD32' if weights_df.loc[index, col] > 0.2 
                                        else '#6FD17A' if weights_df.loc[index, col] > 0.1
                                        else '#D6FF97' if weights_df.loc[index, col] > 0.04
-                                       else 'white',}) for col in weights_df.columns],
-                                     #'hovertemplate': 'Ticker: {}'.format(Stock(col))}) for col in weights_df.columns],
-
+                                       else 'white',
+                                       },
+                                       title=col,
+                                ) for col in weights_df.columns],
                 ]
             ) for index in weights_df.index.strftime('%Y-%m-%d')]
         ]
@@ -441,11 +448,11 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
     ),
     html.H2(children='Weights'),
 
-    generate_weights_table(weights_df),
+    generate_weights_table(weights_df, asset_classes),
 
     html.H2(children="Next Month Weights"),
     
-    generate_weights_table(this_month_weight),
+    generate_weights_table(this_month_weight, asset_classes),
 
     html.H2(children='Summary Statistics', style={'font-size': '24px'}),
     returns_table,
