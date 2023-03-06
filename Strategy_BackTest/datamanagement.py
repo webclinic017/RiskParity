@@ -24,7 +24,7 @@ def datamanagement_1(start, end):
     print(asset)
     for i in asset:
         asset_2 = yf.download(i, start=start, end=end)['Adj Close']
-        asset_name = yf.download(i, start=start, end=end).get_full_name()
+        asset_name = yf.Ticker(i).info['longName']
         df_list.append(pd.DataFrame(asset_2))
     prices = pd.concat(df_list, axis=1)
     prices.columns = asset
