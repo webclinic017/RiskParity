@@ -22,7 +22,7 @@ def datamanagement_1(start, end):
     df_list = []
     asset = list(set(asset))
     print(asset)
-    tickers = yf.Tickers(asset.to_list())
+    tickers = yf.Tickers(asset)
 
     for asset, ticker in zip(asset, tickers.tickers):
         asset_2 = yf.download(asset, start=start, end=end)['Adj Close']
