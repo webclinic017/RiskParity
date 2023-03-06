@@ -44,7 +44,7 @@ this_month_weight = pd.DataFrame([])
 def monte_carlo(Y):
     log_return = np.log(Y/Y.shift(1))
     sample = Y.shape[0]
-    num_ports = number_of_iter * 10
+    num_ports = number_of_iter
     all_weights = np.zeros((num_ports, len(Y.columns)))
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
@@ -294,6 +294,14 @@ merged_df.iloc[0] = 0
 merged_df = (1 + merged_df).cumprod() * 10000
 merged_df = merged_df.rename(columns={'Adj Close': 'SPY_Return'})
 
+class Stock:
+    def __init__(self, ticker):
+        self.ticker = ticker
+        self.info = yf.Ticker(ticker).info
+
+    def get_full_name(self):
+        return self.info['longName']
+
 # Generate the table of weights
 
 def generate_weights_table(weights_df):
@@ -321,17 +329,18 @@ def generate_weights_table(weights_df):
                                           'padding': '1px',
                                           'font-family': 'Arial',
                                           'font-size': '14px',}),
-                    *[html.Td(round(weights_df.loc[index, col], 4), style={     # Table content
-                        'text-align': 'center',
-                        'border': '1px solid grey',
-                        'padding': '1px',
-                        'font-family': 'Arial',
-                        'font-size': '12px',
-                        'background-color': '#0DBF00' if weights_df.loc[index, col] > 0.5 
+                    *[html.Td(round(weights_df.loc[index, col], 4),
+                              style={'text-align': 'center',
+                                     'border': '1px solid grey',
+                                     'padding': '1px',
+                                     'font-family': 'Arial',
+                                     'font-size': '12px',
+                                     'background-color': '#0DBF00' if weights_df.loc[index, col] > 0.5 
                                        else '#9ACD32' if weights_df.loc[index, col] > 0.2 
                                        else '#6FD17A' if weights_df.loc[index, col] > 0.1
                                        else '#D6FF97' if weights_df.loc[index, col] > 0.04
-                                       else 'white'}) for col in weights_df.columns],
+                                       else 'white',
+                                     'hovertemplate': 'Ticker: {}'.format(Stock(col))}) for col in weights_df.columns],
 
                 ]
             ) for index in weights_df.index.strftime('%Y-%m-%d')]
