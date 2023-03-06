@@ -339,8 +339,8 @@ def generate_weights_table(weights_df):
                                        else '#9ACD32' if weights_df.loc[index, col] > 0.2 
                                        else '#6FD17A' if weights_df.loc[index, col] > 0.1
                                        else '#D6FF97' if weights_df.loc[index, col] > 0.04
-                                       else 'white',
-                                     'hovertemplate': 'Ticker: {}'.format(Stock(col))}) for col in weights_df.columns],
+                                       else 'white',}) for col in weights_df.columns],
+                                     #'hovertemplate': 'Ticker: {}'.format(Stock(col))}) for col in weights_df.columns],
 
                 ]
             ) for index in weights_df.index.strftime('%Y-%m-%d')]
