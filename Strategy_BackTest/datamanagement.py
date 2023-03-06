@@ -23,14 +23,14 @@ def datamanagement_1(start, end):
     asset_classes, asset = excel_download()
     df_list = []
     asset = list(set(asset))
-    print("HELLO", asset)
-    for asset in asset:
-        asset_2 = yf.download(asset, start=start, end=end)['Adj Close']
+    print(asset)
+    for i in asset:
+        asset_2 = yf.download(i, start=start, end=end)['Adj Close']
         df_list.append(pd.DataFrame(asset_2))
-        asset_2 = pd.DataFrame(asset_2)
     prices = pd.concat(df_list, axis=1)
     prices.columns = asset
     return prices, asset_classes, asset
+
 
 def data_management_2(prices, asset_classes, asset):
     returns = prices
