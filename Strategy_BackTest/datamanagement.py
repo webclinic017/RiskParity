@@ -47,7 +47,7 @@ def data_management_2(prices, asset_classes, asset):
     return returns
 
 def get_asset_names():
-    asset_classes, asset = excel_download()
+    asset = ['AAPL', 'MSFT', 'AMZN']
     asset = list(set(asset))
     tickers = yf.Tickers(asset)
     data = []
