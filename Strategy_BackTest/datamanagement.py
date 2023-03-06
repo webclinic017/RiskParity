@@ -51,12 +51,11 @@ def get_asset_names():
     asset = list(set(asset))
     tickers = yf.Tickers(asset)
     data = []
-    for asset, ticker in zip(asset, tickers.tickers):
-        if isinstance(ticker, str):
-            asset_name = ticker
-        else:
-            ticker_info = ticker.info
-            asset_name = ticker_info.get('longName', ticker_info.get('shortName', asset))
+    data = []
+    for asset in asset:
+        ticker = yf.Ticker(asset)
+        ticker_info = ticker.info
+        asset_name = ticker_info.get('longName', ticker_info.get('shortName', asset))
         data.append([asset, asset_name])
     df = pd.DataFrame(data, columns=['Ticker', 'Name'])
     return df
