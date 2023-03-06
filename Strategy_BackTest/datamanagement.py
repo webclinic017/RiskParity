@@ -10,7 +10,9 @@ def excel_download():
     assets = pd.read_excel(holdings_url,'Holdings',usecols="A:B", engine='openpyxl')
     assets = assets.reindex(columns=['Asset', 'Industry'])
     asset_classes = {'Asset': assets['Asset'].values.tolist(), 
-                     'Industry': assets['Industry'].values.tolist()}
+                     'Industry': assets['Industry'].values.tolist(),
+                     'Full_name': assets['Full_name'].values.tolist(),
+                     }
     asset_classes = pd.DataFrame(asset_classes)
     asset_classes = asset_classes.sort_values(by=['Asset'])
     asset = assets['Asset'].values.tolist()
