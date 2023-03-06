@@ -22,11 +22,12 @@ def datamanagement_1(start, end):
     df_list = []
     asset = list(set(asset))
     print(asset)
-    for i in asset:
-        asset_2 = yf.download(i, start=start, end=end)['Adj Close']
-        df_list.append(pd.DataFrame(asset_2))
-        ticker=yf.Ticker(i)
+    tickers = yf.Tickers(asset)
+
+    for asset, ticker in zip(asset, tickers.tickers):
+        asset_2 = yf.download(asset, start=start, end=end)['Adj Close']
         asset_name = ticker.info.get('longName', ticker.info.get('shortName', asset))
+        print(asset, asset_name)
     prices = pd.concat(df_list, axis=1)
     prices.columns = asset
     print(asset_name)
