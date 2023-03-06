@@ -30,10 +30,10 @@ def datamanagement_1(start, end):
             asset_name = ticker
         else:
             asset_name = ticker.info.get('longName', ticker.info.get('shortName', asset))
-
+        
+        df_list.append(pd.DataFrame(asset_2))
         print(asset, asset_name)
         asset_2 = pd.DataFrame(asset_2)
-        df_list = pd.concat(asset_2, axis=1)
     prices = pd.concat(df_list, axis=1)
     prices.columns = asset
     print(asset_name)
