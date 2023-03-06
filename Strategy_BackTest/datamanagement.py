@@ -26,7 +26,11 @@ def datamanagement_1(start, end):
 
     for asset, ticker in zip(asset, tickers.tickers):
         asset_2 = yf.download(asset, start=start, end=end)['Adj Close']
-        asset_name = ticker.info.get('longName', ticker.info.get('shortName', asset))
+        if isinstance(ticker, str):
+            asset_name = ticker
+        else:
+            asset_name = ticker.info.get('longName', ticker.info.get('shortName', asset))
+
         print(asset, asset_name)
         df_list = pd.concat(asset_2, axis=1)
     prices = pd.concat(df_list, axis=1)
