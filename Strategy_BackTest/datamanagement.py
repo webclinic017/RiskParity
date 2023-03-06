@@ -17,6 +17,20 @@ def excel_download():
     asset = [x for x in asset if str(x) != 'nan']
     return asset_classes, asset
 
+def get_full_name():
+    asset_classes, asset = excel_download()
+    tickers = yf.Tickers(asset)
+    print(asset_classes)
+    for ticker in tickers:
+        if isinstance(ticker, str):
+            asset_name = ticker
+        else:
+            ticker_info = ticker.info
+            asset_name = ticker_info.get('longName', ticker_info.get('shortName', asset))
+    print(asset, asset_name)
+    return asset_name
+
+
 def datamanagement_1(start, end):
     asset_classes, asset = excel_download()
     df_list = []
@@ -45,3 +59,6 @@ def data_management_2(prices, asset_classes, asset):
     asset_classes = pd.DataFrame(asset_classes)
     asset_classes = asset_classes.sort_values(by=['Asset'])
     return returns
+
+print("Start???")
+asset_name = get_full_name()
