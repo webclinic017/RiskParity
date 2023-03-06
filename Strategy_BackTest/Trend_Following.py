@@ -4,8 +4,8 @@ from datamanagement import *
 import numpy as np
 
 Start = '2019-01-01'
-End = '2023-03-02'
-number_of_iter = 10000
+End = '2022-01-01'
+number_of_iter = 50
 
 prices, asset_classes, asset = datamanagement_1(Start, End)
 ret = data_management_2(prices, asset_classes, asset)
