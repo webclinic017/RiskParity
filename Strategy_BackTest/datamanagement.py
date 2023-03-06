@@ -48,16 +48,16 @@ def data_management_2(prices, asset_classes, asset):
 
 def get_asset_names():
     asset = ['AAPL', 'MSFT', 'AMZN']
-    asset = list(set(asset))
-    tickers = yf.Tickers(asset)
-    data = []
+    #asset = list(set(asset))
     data = []
     for asset in asset:
         ticker = yf.Ticker(asset)
         ticker_info = ticker.info
-        asset_name = ticker_info.get('longName', ticker_info.get('shortName', asset))
+        asset_name = ticker_info.get('longName', '')
+        if asset_name == '':
+            asset_name = ticker_info.get('shortName', asset)
         data.append([asset, asset_name])
     df = pd.DataFrame(data, columns=['Ticker', 'Name'])
-    return df
+    return df.set_index('Ticker')
 asset_name = get_asset_names()
 print(asset_name)
