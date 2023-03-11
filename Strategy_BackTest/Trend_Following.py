@@ -3,7 +3,7 @@ import pandas as pd
 from datamanagement import *
 import numpy as np
 
-Start = '2019-01-01'
+Start = '2021-08-01'
 End = '2023-03-11'
 number_of_iter = 50
 
