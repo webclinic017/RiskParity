@@ -12,11 +12,14 @@ import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
 import concurrent.futures
+from scipy.optimize import minimize
+#from optimizer import optimizer_backtest
 from Trend_Following import dummy_L_df, ret, Start, End, dummy_LS_df, number_of_iter, asset_classes
 warnings.filterwarnings("ignore")
 ############################################################
 # Variables and setup
 ############################################################
+counter = 4
 
 date1 = datetime.strptime(Start, "%Y-%m-%d")
 date2 = datetime.strptime(End, "%Y-%m-%d")
@@ -35,6 +38,32 @@ sharpe_array = pd.DataFrame([])
 df_dummy_sum = pd.DataFrame()
 df_dummy_sum = pd.DataFrame()
 this_month_weight = pd.DataFrame([])
+
+# Optimizer
+
+def optimize_risk_parity(Y, counter, i):
+
+    Ycov = Y.cov()
+    n = Y.shape[1]
+    # Define the risk contribution as a constraint
+    def risk_contribution(w):
+        sigma = np.sqrt(np.matmul(np.matmul(w, Ycov), w))
+        return (np.matmul(w, Ycov) * w) / sigma
+    # Define the optimization objective
+    def objective(w):
+        return -np.sum(w * Y.mean())
+    # Define the optimization constraints
+    cons = [{'type': 'eq', 'fun': lambda w: np.sum(w) - 1},
+            {'type': 'ineq', 'fun': lambda w: np.sum(risk_contribution(w)) - (1/n)},
+            ]
+    bounds = [(0, 1) for i in range(n)]
+    # Call the optimization solver
+    res = minimize(objective, np.ones(n)/n, constraints=cons, bounds=bounds, method='SLSQP',
+                   options={'disp': False, 'eps': 1e-12, 'maxiter': 10000})
+    print(res.message)
+    print(res.success)
+
+    return res.x
 
 ############################################################
 # Monte carlo
@@ -155,7 +184,7 @@ def next_sharpe(weights, log_return, sharpe_list):
 ############################################################
 # Backtesting
 ############################################################
-def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls):
+def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls, monte):
     y_next                  = pd.DataFrame([])
     portfolio_return_concat = pd.DataFrame([])
     portfolio_return        = pd.DataFrame([])
@@ -181,8 +210,14 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls):
                     Y = ret[i:b]
                     Y_adjusted = asset_trimmer(b, dummy_L_df, Y)
                     if not Y_adjusted.empty:
-                        #w = threader(Y)
-                        w, sharpe_ratio = monte_carlo(Y_adjusted) #Long
+                        if monte == 0:
+                            print("Calculating using optimization")
+                            w = optimize_risk_parity(Y_adjusted, counter, i)
+                            sharpe_ratio = 1
+                        else:
+                            print("Calculating using MonteCarlo")
+                            w = threader(Y)
+                            w, sharpe_ratio = monte_carlo(Y_adjusted) #Long
                         next_i,next_b = next_month(i)
                         weight_concat = weightings(w, Y_adjusted, next_i, weight_concat, sharpe_array_concat, sharpe_ratio)
                         y_next = ret_pct[next_i:next_b]
@@ -262,9 +297,9 @@ def correlation_matrix(sharpe_array, column):
 ret_pct = ret.pct_change()
 
 ls = 1 # Dummy for long short, shorting needs to be shorted out, but not high prio.
-
+monte = 0
 # Data management of weights and returns.
-portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls)
+portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls, monte)
 
 
 sharpe_array = weight_concat.copy()
@@ -387,7 +422,7 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=returns_df.index, y=returns_df['portfolio_return'], mode='lines', name='Portfolio Return'))
     fig.add_trace(go.Scatter(x=returns_df.index, y=returns_df['SPY_Return'], mode='lines', name='SPY Returns'))
-    corr_matrix = correlation_matrix(sharpe_array, sharpe)
+    corr_matrix = correlation_matrix(sharpe_array, 'sharpe')
     corr_matrix = corr_matrix.to_frame()
     corr_matrix = corr_matrix.sort_values(by='sharpe', ascending=True)
 
@@ -466,8 +501,8 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
     ])
     return app
 
-#app = portfolio_returns_app(merged_df, weight_concat, this_month_weight, sharpe_array)
-#app.run_server(debug=False)
+app = portfolio_returns_app(merged_df, weight_concat, this_month_weight, sharpe_array)
+app.run_server(debug=False)
 
 '''
 Next steps:
