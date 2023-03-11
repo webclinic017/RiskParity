@@ -7,18 +7,6 @@ counter = 4
 
 rng_start = pd.date_range(Start, periods=months_between, freq='MS')
 
-
-
-Model='Classic' # Could be Classic (historical), BL (Black Litterman) or FM (Factor Model)
-Rm = 'MV' # Risk measure used, this time will be variance
-Obj = 'Sharpe' # Objective function, could be MinRisk, MaxRet, Utility or Sharpe
-Hist = True # Use historical scenarios for risk measures that depend on scenarios
-Rf = 0.04 # Risk free rate
-L = 1 # Risk aversion factor, only useful when obj is 'Utility'
-Points = 50 # Number of points of the frontier
-method_mu ='hist' # Method to estimate expected returns based on historical data.
-method_cov ='hist' # Method to estimate covariance matrix based on historical data.
-
 def optimize_risk_parity(Y, Ycov, counter, i):
     n = Y.shape[1]
     # Define the risk contribution as a constraint
@@ -48,15 +36,14 @@ def optimizer_backtest():
         for b in rng_end:
             next_i,next_b = next_month(i)
             Y = ret_pct[i:b]
-            Ycov = Y.cov()
-            w = optimize_risk_parity(Y, Ycov, counter, i)
+            Y_adjusted = asset_trimmer(b, dummy_L_df, Y)
+            Ycov = Y_adjusted.cov()
+            w = optimize_risk_parity(Y_adjusted, Ycov, counter, i)
             w_df = pd.DataFrame(data=w.T.reshape(1, -1), columns=Y.columns)
             w_df['date'] = i
             y_next = ret_pct[next_i:next_b]
-            print(y_next)
             w_df.set_index('date', inplace=True) #This is the weight for i+1 month, using i month data. 
             Y_adjusted_next_L = asset_trimmer(b, dummy_L_df, y_next) #Long
-            print(Y_adjusted_next_L)
             portfolio_return = portfolio_returns(w, Y_adjusted_next_L) #Long
             portfolio_weight_concat = pd.concat([portfolio_weight_concat, w_df], axis=0) #Long
     return portfolio_weight_concat
