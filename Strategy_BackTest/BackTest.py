@@ -165,11 +165,8 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls):
         rng_end = pd.date_range(i, periods=1, freq='M')
         for b in rng_end:
             # cleanup here
-            if rng_start[-1] == i:
-                Y = ret[i:b]
-                Y_adjusted = asset_trimmer(b, dummy_L_df, Y)
-                w, sharpe_ratio = monte_carlo(Y_adjusted)
-                weight_concat = weightings(w, Y_adjusted, i, weight_concat, sharpe_array_concat, sharpe_ratio)
+            if rng_start[-1] == i and prev_i is not None and prev_b is not None:
+                print(f"Last month {i}")
             else:
                 if ls == 0:
                     Y_LS = ret[i:b]
@@ -190,7 +187,9 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls):
                         weight_concat = weightings(w, Y_adjusted, next_i, weight_concat, sharpe_array_concat, sharpe_ratio)
                         y_next = ret_pct[next_i:next_b]
                         Y_adjusted_next_L = asset_trimmer(b, dummy_L_df, y_next) #Long
-                        portfolio_return = portfolio_returns(w, Y_adjusted_next_L, b) #Long
+                        portfolio_return = portfolio_returns(w, Y_adjusted_next_L) #Long
+                prev_i = i
+                prev_b = b
                 portfolio_return_concat = pd.concat([portfolio_return, portfolio_return_concat], axis=0) #Long
     return portfolio_return_concat, weight_concat
 
@@ -227,11 +226,9 @@ def weightings(w, Y_adjusted, i, weight_concat, sharpe_array_concat, sharpe_rati
 
 # Function to calculate portfolio returns
 
-def portfolio_returns(w, Y_adjusted_next, b):
+def portfolio_returns(w, Y_adjusted_next):
     df_daily_return = w.T*Y_adjusted_next
-
     df_portfolio_return = pd.DataFrame(df_daily_return.sum(axis=1), columns=['portfolio_return'])
-    
     return df_portfolio_return
 
 # Multithreading, this needs to be sorted soon.
@@ -253,9 +250,9 @@ def threader(Y):
 
 # Correlation matrix used in the plotly dash.
 
-def correlation_matrix(sharpe_array):
+def correlation_matrix(sharpe_array, column):
     corr_matrix = sharpe_array.corr()
-    corr_matrix = corr_matrix['sharpe']
+    corr_matrix = corr_matrix[f'{column}']
     return corr_matrix
 
 ############################################################
@@ -267,6 +264,7 @@ ls = 1 # Dummy for long short, shorting needs to be shorted out, but not high pr
 
 # Data management of weights and returns.
 portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls)
+
 
 sharpe_array = weight_concat.copy()
 weight_concat.drop('sharpe', axis=1, inplace=True)
@@ -388,7 +386,7 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=returns_df.index, y=returns_df['portfolio_return'], mode='lines', name='Portfolio Return'))
     fig.add_trace(go.Scatter(x=returns_df.index, y=returns_df['SPY_Return'], mode='lines', name='SPY Returns'))
-    corr_matrix = correlation_matrix(sharpe_array)
+    corr_matrix = correlation_matrix(sharpe_array, sharpe)
     corr_matrix = corr_matrix.to_frame()
     corr_matrix = corr_matrix.sort_values(by='sharpe', ascending=True)
 
@@ -467,8 +465,8 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
     ])
     return app
 
-app = portfolio_returns_app(merged_df, weight_concat, this_month_weight, sharpe_array)
-app.run_server(debug=False)
+#app = portfolio_returns_app(merged_df, weight_concat, this_month_weight, sharpe_array)
+#app.run_server(debug=False)
 
 '''
 Next steps:
@@ -478,4 +476,12 @@ Next steps:
 -More assets enabled.
 -More asset selection culling.
 -Hovering of asset names on the weights table and the correlation matrix.
+'''
+
+
+'''
+New project:
+-For each month, rate us on how well we selected assets based on the next months weightings, if the weightings are within a bounds then we are ok, if they are 
+    below the previous month then take note that we were in too deep with this asset class, so next time we think of re-balancing by increasing this asset, we can essentially rate our scores.
+
 '''
