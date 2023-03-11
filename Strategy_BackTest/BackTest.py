@@ -227,6 +227,8 @@ def weightings(w, Y_adjusted, i, weight_concat, sharpe_array_concat, sharpe_rati
 # Function to calculate portfolio returns
 
 def portfolio_returns(w, Y_adjusted_next):
+    print(w)
+    print(Y_adjusted_next)
     df_daily_return = w.T*Y_adjusted_next
     df_portfolio_return = pd.DataFrame(df_daily_return.sum(axis=1), columns=['portfolio_return'])
     return df_portfolio_return

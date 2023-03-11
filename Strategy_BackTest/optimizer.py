@@ -49,8 +49,8 @@ def optimizer_backtest():
             next_i,next_b = next_month(i)
             Y = ret_pct[i:b]
             Ycov = Y.cov()
-            w = optimize_risk_parity(Y, Ycov, counter, i).T
-            w_df = pd.DataFrame(data=w.reshape(1, -1), columns=Y.columns)
+            w = optimize_risk_parity(Y, Ycov, counter, i)
+            w_df = pd.DataFrame(data=w.T.reshape(1, -1), columns=Y.columns)
             w_df['date'] = i
             y_next = ret_pct[next_i:next_b]
             w_df.set_index('date', inplace=True) #This is the weight for i+1 month, using i month data. 
