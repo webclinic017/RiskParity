@@ -56,6 +56,7 @@ def optimizer_backtest():
             print(y_next)
             w_df.set_index('date', inplace=True) #This is the weight for i+1 month, using i month data. 
             Y_adjusted_next_L = asset_trimmer(b, dummy_L_df, y_next) #Long
+            print(Y_adjusted_next_L)
             portfolio_return = portfolio_returns(w, Y_adjusted_next_L) #Long
             portfolio_weight_concat = pd.concat([portfolio_weight_concat, w_df], axis=0) #Long
     return portfolio_weight_concat
