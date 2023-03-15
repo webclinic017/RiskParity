@@ -534,23 +534,32 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
     corr_matrix = corr_matrix.sort_values(by='sharpe', ascending=True)
     corr_matrix_long = long_names(asset_classes, corr_matrix.T).T
     corr_matrix, corr_matrix_long = df_merger(corr_matrix, corr_matrix_long)
+  
+    data = [
+        go.Heatmap(
+            z=corr_matrix.values,
+            x=corr_matrix.columns,
+            y=corr_matrix_long.index,
+            colorscale='RdBu',
+            hoverongaps=False,
+            hovertemplate='%{y} <br>Correlation: %{z:.2f}<br>',
+            showscale=True,
+            zmin=-1,
+            zmax=1,
+            text=corr_matrix.round(2).values.astype(str),
+            texttemplate="%{text}",
+            textfont={"size":10}
+        )
+    ]
 
-    print(len(corr_matrix), len(corr_matrix_long))
-    data = [go.Heatmap(
-                   z=corr_matrix.values,
-                   x=corr_matrix.columns,
-                   y=corr_matrix.index,
-                   #yhoverformat=corr_matrix_long.index,
-                   colorscale='RdBu',
-                   hoverongaps=False,
-                   hovertemplate='%{y}: %{x}<br>Correlation: %{z:.2f}<br>%{text}<extra></extra>',
-                   showscale=True,
-                   zmin=-1,
-                   zmax=1,
-                   #text=corr_matrix.round(2).values.astype(str),
-                   text=corr_matrix_long.index.to_list(),
-                   texttemplate="%{text}",
-                   textfont={"size":10})]
+    layout = go.Layout(
+        title='Sharpe ratio correlations',
+        yaxis=dict(
+            tickmode='array',
+            tickvals=list(range(len(corr_matrix.index))),
+            ticktext=corr_matrix.index.to_list()
+        )
+    )
     # Create a table of summary statistics for portfolio and benchmark returns
     returns_table = html.Table(children=[
             html.Tr(children=[
@@ -605,7 +614,7 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
     returns_table,
     #I would like the index to be the ticker, and the hover on the chart to be the full asset name, it would also be nice in the weights table.
     html.H2(children='Correlation Matrix'),
-    dcc.Graph(id='correlation-matrix', figure={'data': data},
+    dcc.Graph(id='correlation-matrix', figure={'data': data, 'layout':layout},
             style={'width': '40vh',
                    'height': '90vh',
                    'font-family': 'Arial',
