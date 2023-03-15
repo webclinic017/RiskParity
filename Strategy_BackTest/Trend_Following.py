@@ -2,9 +2,10 @@
 import pandas as pd
 from datamanagement import *
 import numpy as np
+from datetime import date
 
 Start = '2019-01-01'
-End = '2022-03-01'
+End = date.today()
 number_of_iter = 50
 
 prices, asset_classes, asset = datamanagement_1(Start, End)
