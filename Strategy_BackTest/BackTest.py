@@ -8,11 +8,12 @@ from datetime import datetime
 from calendar import monthrange
 from dateutil.relativedelta import relativedelta
 import dash
+import cvxpy as cp
 import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
 import concurrent.futures
-from scipy.optimize import minimize
+from scipy.optimize import minimize, Bounds, LinearConstraint, NonlinearConstraint
 #from optimizer import optimizer_backtest
 from Trend_Following import dummy_L_df, ret, Start, End, dummy_LS_df, number_of_iter, asset_classes
 warnings.filterwarnings("ignore")
@@ -41,9 +42,10 @@ this_month_weight = pd.DataFrame([])
 
 # Optimizer
 
-def optimize_risk_parity(Y, counter, i):
-
+def optimize_risk_parity(Y):
+    Y = Y.pct_change()
     Ycov = Y.cov()
+
     n = Y.shape[1]
     # Define the risk contribution as a constraint
     def risk_contribution(w):
@@ -54,16 +56,117 @@ def optimize_risk_parity(Y, counter, i):
         return -np.sum(w * Y.mean())
     # Define the optimization constraints
     cons = [{'type': 'eq', 'fun': lambda w: np.sum(w) - 1},
-            {'type': 'ineq', 'fun': lambda w: np.sum(risk_contribution(w)) - (1/n)},
+            #{'type': 'ineq', 'fun': lambda w: np.sum(risk_contribution(w)) - (1/n)},
+            #{'type': 'ineq', 'fun': lambda w: (1/n)*(1+0.05) - np.max(risk_contribution(w))},
+            {'type': 'ineq', 'fun': lambda w: np.min(w) - (1/n)},
             ]
     bounds = [(0, 1) for i in range(n)]
     # Call the optimization solver
     res = minimize(objective, np.ones(n)/n, constraints=cons, bounds=bounds, method='SLSQP',
-                   options={'disp': False, 'eps': 1e-12, 'maxiter': 10000})
+                   options={'disp': False, 'eps': 1e-12, 'maxiter': 10000})    
+    
     print(res.message)
     print(res.success)
-
     return res.x
+
+def optimize_risk_parity2(mean_returns):
+    mean_returns = mean_returns.pct_change().dropna()
+    mean_returns = mean_returns.values
+
+    # Define the covariance matrix
+    #cov_matrix = mean_returns.cov().T.values
+    cov_matrix = np.cov(mean_returns)
+
+    # Define the number of assets
+    n_assets = len(mean_returns)
+    cov_matrix = cov_matrix[:n_assets, :n_assets]
+
+    # Define the variables
+    weights = cp.Variable(n_assets)
+
+    # Define the constraints
+    constraints = [
+        cp.sum(weights) == 1,  # weights sum up to 1
+        weights >= 0  # weights are non-negative
+    ]
+    # Define the objective function
+    risk_contribution = cp.matmul(cp.diag(weights), cov_matrix)
+    portfolio_risk = cp.sqrt(cp.sum(cp.square(cp.diag(risk_contribution))))
+    #objective = cp.Minimize(cp.norm(portfolio_risk, p=2))
+    objective = cp.Minimize(portfolio_risk)
+
+    # Define the problem
+    problem = cp.Problem(objective, constraints)
+
+    # Solve the problem
+    problem.solve(qcp=True)
+
+    # Return the optimal weights
+    print(weights.value)
+    return weights.value
+
+def risk_parity_optimizer3(cov_matrix, target_risk):
+    """
+    Optimize portfolio weights to achieve risk parity
+
+    Parameters:
+    cov_matrix (np.ndarray): Covariance matrix of asset returns
+    target_risk (float or np.ndarray): Target risk contribution(s) for each asset
+
+    Returns:
+    np.ndarray: Optimal portfolio weights
+    """
+    def risk_contribution(weights):
+        """
+        Calculate the risk contribution of each asset in the portfolio
+        """
+        port_variance = np.dot(weights.T, np.dot(cov_matrix, weights))
+        risk_contrib = np.dot(cov_matrix, weights) / np.sqrt(port_variance)
+        return risk_contrib
+
+    def objective_function(weights):
+        """
+        Calculate the difference between the actual and target risk contribution
+        """
+        return np.sum((risk_contribution(weights) - target_risk) ** 2)
+
+    num_assets = cov_matrix.shape[0]
+    init_weights = np.repeat(1 / num_assets, num_assets) # initialize weights to be equal
+    constraints = [{'type': 'eq', 'fun': lambda x: np.sum(x) - 1}] # sum of weights equals 1
+    bounds = [(0, 1) for i in range(num_assets)] # weights are between 0 and 1
+    result = minimize(objective_function, init_weights, method='SLSQP',
+                      bounds=bounds, constraints=constraints)
+    return result.x
+
+def max_sharpe_ratio_optimizer(mean_returns, cov_matrix, risk_free_rate):
+    """
+    Optimize portfolio weights to achieve maximum Sharpe ratio
+
+    Parameters:
+    mean_returns (np.ndarray): Mean returns for each asset
+    cov_matrix (np.ndarray): Covariance matrix of asset returns
+    risk_free_rate (float): Risk-free rate of return
+
+    Returns:
+    np.ndarray: Optimal portfolio weights
+    """
+    mean_returns = mean_returns.T
+    def negative_sharpe_ratio(weights):
+        """
+        Calculate negative Sharpe ratio of a portfolio
+        """
+
+        port_return = np.sum(mean_returns.T * weights)
+        port_std_dev = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+        return -(port_return - risk_free_rate) / port_std_dev
+
+    num_assets = len(mean_returns)
+    init_weights = np.repeat(1 / num_assets, num_assets) # initialize weights to be equal
+    constraints = [{'type': 'eq', 'fun': lambda x: np.sum(x) - 1}] # sum of weights equals 1
+    bounds = [(0, 1) for i in range(num_assets)] # weights are between 0 and 1
+    result = minimize(negative_sharpe_ratio, init_weights, method='SLSQP',
+                      bounds=bounds, constraints=constraints)
+    return result.x
 
 ############################################################
 # Monte carlo
@@ -95,7 +198,7 @@ def monte_carlo(Y):
         vol_arr[ind] = np.sqrt(np.dot(weights.T,np.dot(log_return.cov()*sample, weights)))
 
         # Sharpe Ratio 
-        sharpe_arr[ind] = ret_arr[ind]/vol_arr[ind]
+        sharpe_arr[ind] = (ret_arr[ind]-0.02)/vol_arr[ind]
     max_sh = sharpe_arr.argmax()
     #plot_frontier(vol_arr,ret_arr,sharpe_arr)
     sharpe_ratio = ret_arr[max_sh]/vol_arr[max_sh]
@@ -196,6 +299,8 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls, monte):
             # cleanup here
             if rng_start[-1] == i and prev_i is not None and prev_b is not None:
                 print(f"Last month {i}")
+                Y = ret[prev_i:prev_b]
+                w = optimize_risk_parity(Y_adjusted)
             else:
                 if ls == 0:
                     Y_LS = ret[i:b]
@@ -209,14 +314,13 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls, monte):
                 else:
                     Y = ret[i:b]
                     Y_adjusted = asset_trimmer(b, dummy_L_df, Y)
+                    Y_adjusted_cov = Y_adjusted.cov()
                     if not Y_adjusted.empty:
                         if monte == 0:
-                            print("Calculating using optimization")
-                            w = optimize_risk_parity(Y_adjusted, counter, i)
+                            w = optimize_risk_parity(Y_adjusted)
+                            #w = max_sharpe_ratio_optimizer(Y_adjusted.to_numpy(), Y_adjusted_cov.to_numpy(), 0.04)
                             sharpe_ratio = 1
                         else:
-                            print("Calculating using MonteCarlo")
-                            w = threader(Y)
                             w, sharpe_ratio = monte_carlo(Y_adjusted) #Long
                         next_i,next_b = next_month(i)
                         weight_concat = weightings(w, Y_adjusted, next_i, weight_concat, sharpe_array_concat, sharpe_ratio)
@@ -240,7 +344,6 @@ def asset_trimmer(b, df_monthly, Y):
 
 def asset_trimmer_LS(b, df_monthly, Y):
     df_split_monthly = df_monthly[b:b]
-    print("are we here???")
     cols_to_drop = [col for col in df_split_monthly.columns if (-0.8 < df_split_monthly[col].max() < 0.8)]
     print("Trend DF", df_split_monthly.drop(columns=cols_to_drop))
     Y = Y.drop(columns=cols_to_drop)
@@ -262,7 +365,6 @@ def weightings(w, Y_adjusted, i, weight_concat, sharpe_array_concat, sharpe_rati
 # Function to calculate portfolio returns
 
 def portfolio_returns(w, Y_adjusted_next):
-    print(w)
     df_daily_return = w.T*Y_adjusted_next
     df_portfolio_return = pd.DataFrame(df_daily_return.sum(axis=1), columns=['portfolio_return'])
     return df_portfolio_return
@@ -297,7 +399,12 @@ def correlation_matrix(sharpe_array, column):
 ret_pct = ret.pct_change()
 
 ls = 1 # Dummy for long short, shorting needs to be shorted out, but not high prio.
-monte = 0
+monte = 1
+if monte == 0:
+    print("Caculating using optimization")
+else:
+    print("Calculating with MonteCarlo")
+
 # Data management of weights and returns.
 portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls, monte)
 
@@ -305,7 +412,7 @@ portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret_pct, dummy
 sharpe_array = weight_concat.copy()
 weight_concat.drop('sharpe', axis=1, inplace=True)
 
-this_month_weight = weight_concat.iloc[-2]
+this_month_weight = weight_concat.iloc[-1]
 this_month_weight = pd.DataFrame([this_month_weight])
 weight_concat = weight_concat.drop(index=weight_concat.index[-1])
 
@@ -425,17 +532,23 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
     corr_matrix = correlation_matrix(sharpe_array, 'sharpe')
     corr_matrix = corr_matrix.to_frame()
     corr_matrix = corr_matrix.sort_values(by='sharpe', ascending=True)
+    corr_matrix_long = long_names(asset_classes, corr_matrix.T).T
+    corr_matrix, corr_matrix_long = df_merger(corr_matrix, corr_matrix_long)
 
-    data = [go.Heatmap(z=corr_matrix.values,
+    print(len(corr_matrix), len(corr_matrix_long))
+    data = [go.Heatmap(
+                   z=corr_matrix.values,
                    x=corr_matrix.columns,
                    y=corr_matrix.index,
+                   #yhoverformat=corr_matrix_long.index,
                    colorscale='RdBu',
                    hoverongaps=False,
-                   hovertemplate='%{y}: %{x}<br>Correlation: %{z:.2f}<extra></extra>',
+                   hovertemplate='%{y}: %{x}<br>Correlation: %{z:.2f}<br>%{text}<extra></extra>',
                    showscale=True,
                    zmin=-1,
                    zmax=1,
-                   text=corr_matrix.round(2).values.astype(str),
+                   #text=corr_matrix.round(2).values.astype(str),
+                   text=corr_matrix_long.index.to_list(),
                    texttemplate="%{text}",
                    textfont={"size":10})]
     # Create a table of summary statistics for portfolio and benchmark returns
