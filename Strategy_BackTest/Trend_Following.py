@@ -5,7 +5,7 @@ import numpy as np
 from datetime import date
 
 Start = '2019-01-01'
-End = date.today()
+End = date.today().strftime("%Y-%m-%d")
 number_of_iter = 50
 
 prices, asset_classes, asset = datamanagement_1(Start, End)

@@ -176,7 +176,7 @@ def max_sharpe_ratio_optimizer(mean_returns, cov_matrix, risk_free_rate):
 def monte_carlo(Y):
     log_return = np.log(Y/Y.shift(1))
     sample = Y.shape[0]
-    num_ports = number_of_iter
+    num_ports = number_of_iter * 200
     all_weights = np.zeros((num_ports, len(Y.columns)))
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
