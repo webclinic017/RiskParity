@@ -443,7 +443,7 @@ def long_names(asset_classes, weight):
 # Generate the table of weights
 def df_merger(weights_df, weight_long):
     for asset_df, asset_long in zip(weights_df, weight_long):
-        column_name = f"{asset_long} ({asset_df})"
+        column_name = f"{asset_long}"
         weights_df.rename(columns={asset_df: column_name}, inplace=True)
         weight_long.rename(columns={asset_long: column_name}, inplace=True)
     return weights_df, weight_long
@@ -548,7 +548,8 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
             zmax=1,
             text=corr_matrix.round(2).values.astype(str),
             texttemplate="%{text}",
-            textfont={"size":10}
+            textfont={"size":10},
+            name = ''
         )
     ]
 
