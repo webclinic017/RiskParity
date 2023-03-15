@@ -22,6 +22,7 @@ warnings.filterwarnings("ignore")
 ############################################################
 counter = 4
 
+
 date1 = datetime.strptime(Start, "%Y-%m-%d")
 date2 = datetime.strptime(End, "%Y-%m-%d")
 diff = relativedelta(date2, date1)
