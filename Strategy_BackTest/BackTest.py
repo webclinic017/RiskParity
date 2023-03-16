@@ -22,6 +22,11 @@ warnings.filterwarnings("ignore")
 ############################################################
 counter = 4
 
+#setup:
+ls        = 1
+monte     = 1
+rsi       = 1
+benchmark = 'ACWI'
 
 date1 = datetime.strptime(Start, "%Y-%m-%d")
 date2 = datetime.strptime(End, "%Y-%m-%d")
@@ -176,7 +181,7 @@ def max_sharpe_ratio_optimizer(mean_returns, cov_matrix, risk_free_rate):
 def monte_carlo(Y):
     log_return = np.log(Y/Y.shift(1))
     sample = Y.shape[0]
-    num_ports = number_of_iter * 200
+    num_ports = number_of_iter*200
     all_weights = np.zeros((num_ports, len(Y.columns)))
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
@@ -399,12 +404,16 @@ def correlation_matrix(sharpe_array, column):
 ############################################################
 ret_pct = ret.pct_change()
 
-ls = 1 # Dummy for long short, shorting needs to be shorted out, but not high prio.
-monte = 1
+
 if monte == 0:
     print("Caculating using optimization")
 else:
     print("Calculating with MonteCarlo")
+
+if rsi == 1:
+    dummy_L_df = rsi_df_trend
+else:
+    dummy_L_df = dummy_L_df
 
 # Data management of weights and returns.
 portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls, monte)
@@ -426,15 +435,19 @@ portfolio_return_concat = pd.DataFrame(pd.DataFrame(portfolio_return_concat))
 Bench_start = portfolio_return_concat.index.min()
 Bench_end   = portfolio_return_concat.index.max()
 
-SPY = yf.download('SPY', start=Bench_start, Bench_end=End)['Adj Close'].pct_change()
-SPY = pd.DataFrame(pd.DataFrame(SPY))
+Bench = yf.download(benchmark, start=Bench_start, Bench_end=End)['Adj Close'].pct_change()
+Bench = pd.DataFrame(pd.DataFrame(Bench))
+Bench.iloc[0] = 0
+Bench = (1 + Bench).cumprod() * 10000
+Bench = Bench.rename(columns={'Adj Close': f'{benchmark}_Return'})
 
-merged_df = SPY.merge(portfolio_return_concat, left_index=True, right_index=True)
+portfolio_return_concat = portfolio_return_concat.sort_index(sort_remaining=False)
+
+merged_df = portfolio_return_concat
 merged_df.iloc[0] = 0
-
 merged_df = (1 + merged_df).cumprod() * 10000
-merged_df = merged_df.rename(columns={'Adj Close': 'SPY_Return'})
 
+print(merged_df)
 
 def long_names(asset_classes, weight):
     mapping_dict = dict(zip(asset_classes['Asset'], asset_classes['Full_name']))
@@ -500,7 +513,21 @@ def generate_weights_table(weights_df, asset_classes):
 
 # Create the plotly dash
 
-def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_array):
+def portfolio_data(df, col, num_days, average_number_days):
+    Net_Returns = df[f'{col}'].mean()* num_days
+    Average_Returns = df[f'{col}'].mean() * average_number_days
+    std = df[f'{col}'].std() * average_number_days
+    Sharpe_Ratio =  np.sqrt(average_number_days) * (Average_Returns / std)
+    return Net_Returns, Average_Returns, std, Sharpe_Ratio
+
+def last_month_data(df, col):
+    last_month_returns = df.loc[df.index.month == df.index[-2].month]
+    last_month_mean_returns = last_month_returns[col].mean()
+    last_month_std_returns = last_month_returns[col].std()
+    last_month_sharpe_ratio = np.sqrt(12) * (last_month_mean_returns / last_month_std_returns)
+    return last_month_returns, last_month_mean_returns, last_month_std_returns, last_month_sharpe_ratio
+
+def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_array, Bench):
     # Calculate summary statistics for portfolio returns
     num_years = (returns_df.index.max() - returns_df.index.min()).days / 365
     num_days = len(returns_df)
@@ -509,27 +536,19 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
     returns.dropna(inplace=True)
 
     # Portfolio data:
-    Portfolio_Net_Returns = returns['portfolio_return'].mean()* num_days
-    Portfolio_Average_Returns = returns['portfolio_return'].mean() * average_number_days
-    Portfolio_std = returns['portfolio_return'].std() * average_number_days
-    Portfolio_Sharpe_Ratio =  np.sqrt(average_number_days) * (Portfolio_Average_Returns / Portfolio_std)
-    
-    # SPY data:
-    SPY_Net_Returns = returns['SPY_Return'].mean()*num_days
-    SPY_Average_Returns = returns['SPY_Return'].mean() * average_number_days
-    SPY_std = returns['SPY_Return'].std() * average_number_days
-    SPY_Sharpe_Ratio = np.sqrt(average_number_days) * (SPY_Average_Returns / SPY_std)
-    
-    # Calculate monthly Sharpe ratio for last month
-    last_month_returns = returns.loc[returns.index.month == returns.index[-2].month]
-    last_month_mean_returns = last_month_returns['portfolio_return'].mean()
-    last_month_std_returns = last_month_returns['portfolio_return'].std()
-    last_month_sharpe_ratio = np.sqrt(12) * (last_month_mean_returns / last_month_std_returns)
-    
+    Portfolio_Net_Returns, Portfolio_Average_Returns, Portfolio_std, Portfolio_Sharpe_Ratio = portfolio_data(returns, 'portfolio_return', num_days, average_number_days)
+    last_month_returns, last_month_mean_returns, last_month_std_returns, last_month_sharpe_ratio = last_month_data(returns, 'portfolio_return')
+    # Bench data:
+    Bench_Net_Returns, Bench_Average_Returns, Bench_std, Bench_Sharpe_Ratio = portfolio_data(Bench, f'{benchmark}_Return', num_days, average_number_days)
+    last_month_bench, last_month_mean_bench, last_month_std_bench, last_month_sharpe_ratio_bench = last_month_data(Bench, f'{benchmark}_Return')
+ 
     # Create a line chart of portfolio and benchmark returns
     fig = go.Figure()
+
+    returns_df = returns_df.sort_index(ascending=False)
     fig.add_trace(go.Scatter(x=returns_df.index, y=returns_df['portfolio_return'], mode='lines', name='Portfolio Return'))
-    fig.add_trace(go.Scatter(x=returns_df.index, y=returns_df['SPY_Return'], mode='lines', name='SPY Returns'))
+    fig.add_trace(go.Scatter(x=Bench.index, y=Bench[f'{benchmark}_Return'], mode='lines', name=f'{benchmark} Returns'))
+
     corr_matrix = correlation_matrix(sharpe_array, 'sharpe')
     corr_matrix = corr_matrix.to_frame()
     corr_matrix = corr_matrix.sort_values(by='sharpe', ascending=True)
@@ -567,32 +586,32 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
             html.Tr(children=[
                 html.Th('Statistic'),
                 html.Th('Portfolio'),
-                html.Th('SPY')
+                html.Th(benchmark)
             ]),
             html.Tr(children=[
                 html.Td('Net Returns'),
                 html.Td(round(Portfolio_Net_Returns, 4)),
-                html.Td(round(SPY_Net_Returns, 4)),
+                html.Td(round(Bench_Net_Returns, 4)),
             ]),
             html.Tr(children=[
                 html.Td('Avg Yr Returns'),
                 html.Td(round(Portfolio_Net_Returns / num_years, 4)),
-                html.Td(round(SPY_Net_Returns / num_years, 4))
+                html.Td(round(Bench_Net_Returns / num_years, 4))
             ]),
             html.Tr(children=[
                 html.Td('Std Returns'),
                 html.Td(round(Portfolio_std, 4)),
-                html.Td(round(SPY_std, 4))
+                html.Td(round(Bench_std, 4))
             ]),
             html.Tr(children=[
                 html.Td('Sharpe Ratio'),
                 html.Td(str(round(Portfolio_Sharpe_Ratio, 4))),
-                html.Td(str(round(SPY_Sharpe_Ratio, 4)))
+                html.Td(str(round(Bench_Sharpe_Ratio, 4)))
             ]),
             html.Tr(children=[
                 html.Td('L/M sharpe Ratio'),
                 html.Td(str(round(last_month_sharpe_ratio, 4))),
-                html.Td(str(round(np.sqrt(252) * (last_month_returns['SPY_Return'].mean() / last_month_returns['SPY_Return'].std()), 4)))
+                html.Td(str(round(last_month_sharpe_ratio_bench, 4)))
             ])
         ])
        
@@ -625,7 +644,7 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
     ])
     return app
 
-app = portfolio_returns_app(merged_df, weight_concat, this_month_weight, sharpe_array)
+app = portfolio_returns_app(merged_df, weight_concat, this_month_weight, sharpe_array, Bench)
 app.run_server(debug=False)
 
 '''
