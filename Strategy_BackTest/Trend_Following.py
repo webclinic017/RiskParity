@@ -76,8 +76,6 @@ def calculate_monthly_rsi(df):
         rsi_df = rsi_df.rename(columns={'RSI': col})
         rsi_dfs = pd.concat([rsi_dfs, rsi_df], axis=1, join='outer')
     # Combine RSI DataFrames for all assets into one DataFrame
-    print(rsi_dfs)
-
     return rsi_dfs
 
 def get_market_trend(rsi_df):
