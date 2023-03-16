@@ -15,7 +15,7 @@ import plotly.graph_objs as go
 import concurrent.futures
 from scipy.optimize import minimize, Bounds, LinearConstraint, NonlinearConstraint
 #from optimizer import optimizer_backtest
-from Trend_Following import dummy_L_df, ret, Start, End, dummy_LS_df, number_of_iter, asset_classes
+from Trend_Following import dummy_L_df, ret, Start, End, dummy_LS_df, number_of_iter, asset_classes, rsi_dfs
 warnings.filterwarnings("ignore")
 ############################################################
 # Variables and setup
@@ -199,7 +199,7 @@ def monte_carlo(Y):
         vol_arr[ind] = np.sqrt(np.dot(weights.T,np.dot(log_return.cov()*sample, weights)))
 
         # Sharpe Ratio 
-        sharpe_arr[ind] = (ret_arr[ind]-0.02)/vol_arr[ind]
+        sharpe_arr[ind] = (ret_arr[ind])/vol_arr[ind]
     max_sh = sharpe_arr.argmax()
     #plot_frontier(vol_arr,ret_arr,sharpe_arr)
     sharpe_ratio = ret_arr[max_sh]/vol_arr[max_sh]
