@@ -15,7 +15,7 @@ import plotly.graph_objs as go
 import concurrent.futures
 from scipy.optimize import minimize, Bounds, LinearConstraint, NonlinearConstraint
 #from optimizer import optimizer_backtest
-from Trend_Following import dummy_L_df, ret, Start, End, dummy_LS_df, number_of_iter, asset_classes, rsi_dfs
+from Trend_Following import dummy_L_df, ret, Start, End, dummy_LS_df, number_of_iter, asset_classes, rsi_df_trend
 warnings.filterwarnings("ignore")
 ############################################################
 # Variables and setup

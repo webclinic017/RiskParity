@@ -80,7 +80,22 @@ def calculate_monthly_rsi(df):
 
     return rsi_dfs
 
+def get_market_trend(rsi_df):
+    """
+    Determines whether the asset is in a bull or bear market based on its RSI values.
+    
+    Parameters:
+    rsi_df (pandas.DataFrame): The RSI DataFrame for an asset.
+    
+    Returns:
+    int: 1 if the asset is in a bull market, 0 if it is in a bear market.
+    """
+    last_rsi = pd.DataFrame([])
+    for asset_name in rsi_df.columns:
+        last_rsi[asset_name] = (rsi_df[asset_name] >= 0.5).astype(int)
+        
+    return last_rsi
+
 rsi_df = calculate_monthly_rsi(ret)
-
-
+rsi_df_trend = get_market_trend(rsi_df)
 # Now, if the row for a specific contract is <0, then we can exclude it from our sample set, and it is not needed. This is part of the asset selection component.
