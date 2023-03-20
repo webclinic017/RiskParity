@@ -101,34 +101,35 @@ rsi_df_trend = get_market_trend(rsi_df)
 Here, I am going to calculate the derivative of the dummy_long_dfs to see if we can track trends well there.
 Is it the derivative of my dummy df, or my trend df?
 '''
-# Convert the index to a pandas Timestamp index
-ret.index = pd.to_datetime(ret.index)
-# Calculate derivatives for 1-month, 3-month, and 6-month returns
-returns_derivative_1m = ret.pct_change(1)
-returns_derivative_3m = ret.pct_change(3)
-returns_derivative_6m = ret.pct_change(6)
+def deriv(ret):
+    # Convert the index to a pandas Timestamp index
+    ret.index = pd.to_datetime(ret.index)
+    # Calculate derivatives for 1-month, 3-month, and 6-month returns
+    returns_derivative_1m = ret.pct_change(1)
+    returns_derivative_3m = ret.pct_change(3)
+    returns_derivative_6m = ret.pct_change(6)
 
-# Calculate rolling derivatives for 3-month and 6-month returns
-returns_derivative_3m = returns_derivative_3m.rolling(window=3, min_periods=3).apply(lambda x: x[2]/x[0]-1)
-returns_derivative_6m = returns_derivative_6m.rolling(window=6, min_periods=6).apply(lambda x: x[5]/x[0]-1)
-# Create a new DataFrame to store trend data
-df_trend = pd.DataFrame(index=ret.index, columns=ret.columns)
-# Loop over the index of the df_trend DataFrame
-for idx in df_trend.index:
-    # Check if the index is present in both DataFrames
-    if idx in returns_derivative_1m.index and idx in returns_derivative_3m.index and idx in returns_derivative_6m.index:
-        print("Here")
-        for col in returns_derivative_1m.columns:
-            print("There")
-            print()
-            is_increasing = (
-                (returns_derivative_1m[col].loc[idx] > returns_derivative_1m[col].loc[idx-pd.Timedelta(days=30)]) #and 
-                #(returns_derivative_3m[col].loc[idx] > returns_derivative_3m[col].loc[idx-pd.Timedelta(days=90)]) and
-                #(returns_derivative_6m[col].loc[idx] > returns_derivative_6m[col].loc[idx-pd.Timedelta(days=180)]) and
-                #(returns_derivative_1m[col].loc[idx] > returns_derivative_1m[col].loc[idx-pd.Timedelta(days=60)])
-            )
-            print(returns_derivative_1m[col].loc[idx])
-            print(returns_derivative_1m[col].loc[idx-pd.Timedelta(days=30)])
-            # If all derivatives are increasing, set the value to 1, otherwise 0
-            df_trend.loc[idx, col] = 1 if is_increasing else 0
-print(df_trend)
+    # Calculate rolling derivatives for 3-month and 6-month returns
+    returns_derivative_3m = returns_derivative_3m.rolling(window=3, min_periods=3).apply(lambda x: x[2]/x[0]-1)
+    returns_derivative_6m = returns_derivative_6m.rolling(window=6, min_periods=6).apply(lambda x: x[5]/x[0]-1)
+    # Create a new DataFrame to store trend data
+    df_trend = pd.DataFrame(index=ret.index, columns=ret.columns)
+    # Loop over the index of the df_trend DataFrame
+    for idx in df_trend.index:
+        # Check if the index is present in both DataFrames
+        if idx in returns_derivative_1m.index and idx in returns_derivative_3m.index and idx in returns_derivative_6m.index:
+            print("Here")
+            for col in returns_derivative_1m.columns:
+                print("There")
+                print()
+                is_increasing = (
+                    (returns_derivative_1m[col].loc[idx] > returns_derivative_1m[col].loc[idx-pd.Timedelta(days=30)]) #and 
+                    #(returns_derivative_3m[col].loc[idx] > returns_derivative_3m[col].loc[idx-pd.Timedelta(days=90)]) and
+                    #(returns_derivative_6m[col].loc[idx] > returns_derivative_6m[col].loc[idx-pd.Timedelta(days=180)]) and
+                    #(returns_derivative_1m[col].loc[idx] > returns_derivative_1m[col].loc[idx-pd.Timedelta(days=60)])
+                )
+                print(returns_derivative_1m[col].loc[idx])
+                print(returns_derivative_1m[col].loc[idx-pd.Timedelta(days=30)])
+                # If all derivatives are increasing, set the value to 1, otherwise 0
+                df_trend.loc[idx, col] = 1 if is_increasing else 0
+    print(df_trend)
