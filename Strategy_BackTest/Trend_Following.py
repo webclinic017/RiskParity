@@ -4,8 +4,8 @@ from datamanagement import *
 import numpy as np
 import math
 from datetime import date
-
-Start = '2019-01-01'
+import matplotlib.pyplot as plt
+Start = '2022-01-01'
 End = date.today().strftime("%Y-%m-%d")
 number_of_iter = 50
 
@@ -17,8 +17,6 @@ def calculate_rolling_average(ret, window):
     for column in ret.columns:
         rolling_df[column] = ret[column].rolling(window=window).mean()
     return rolling_df
-
-
 
 # Now we need to use this to determine what assets to hold. So for each month, we need to know if the asset is trending.
 # To do this, I think for each day, we can have a dummy, 1 for above sma and 2 for below sma.
@@ -34,12 +32,13 @@ def dummy_sma(rolling_df, ret):
         # Compare the prices of the asset for each date
         dummy_L_df[asset_name] = (rolling_df[asset_name] < ret[asset_name]).astype(int)
         dummy_LS_df[asset_name] = np.where(rolling_df[asset_name] < ret[asset_name], 0, -1)
+    Dummy_L_df_derivative = dummy_L_df
     dummy_L_df  = dummy_L_df.resample('M').mean()
     dummy_LS_df = dummy_LS_df.resample('M').mean()
-    return dummy_L_df, dummy_LS_df
+    return dummy_L_df, dummy_LS_df, Dummy_L_df_derivative
 
 rolling_df = calculate_rolling_average(ret, min(200, len(ret)))
-dummy_L_df, dummy_LS_df = dummy_sma(rolling_df, ret)
+dummy_L_df, dummy_LS_df, Dummy_L_df_derivative = dummy_sma(rolling_df, ret)
  
 def calculate_monthly_rsi(df):
     # Calculate monthly RSI for each column (i.e., asset)
@@ -97,3 +96,39 @@ def get_market_trend(rsi_df):
 rsi_df = calculate_monthly_rsi(ret)
 rsi_df_trend = get_market_trend(rsi_df)
 # Now, if the row for a specific contract is <0, then we can exclude it from our sample set, and it is not needed. This is part of the asset selection component.
+
+'''
+Here, I am going to calculate the derivative of the dummy_long_dfs to see if we can track trends well there.
+Is it the derivative of my dummy df, or my trend df?
+'''
+# Convert the index to a pandas Timestamp index
+ret.index = pd.to_datetime(ret.index)
+# Calculate derivatives for 1-month, 3-month, and 6-month returns
+returns_derivative_1m = ret.pct_change(1)
+returns_derivative_3m = ret.pct_change(3)
+returns_derivative_6m = ret.pct_change(6)
+
+# Calculate rolling derivatives for 3-month and 6-month returns
+returns_derivative_3m = returns_derivative_3m.rolling(window=3, min_periods=3).apply(lambda x: x[2]/x[0]-1)
+returns_derivative_6m = returns_derivative_6m.rolling(window=6, min_periods=6).apply(lambda x: x[5]/x[0]-1)
+# Create a new DataFrame to store trend data
+df_trend = pd.DataFrame(index=ret.index, columns=ret.columns)
+# Loop over the index of the df_trend DataFrame
+for idx in df_trend.index:
+    # Check if the index is present in both DataFrames
+    if idx in returns_derivative_1m.index and idx in returns_derivative_3m.index and idx in returns_derivative_6m.index:
+        print("Here")
+        for col in returns_derivative_1m.columns:
+            print("There")
+            print()
+            is_increasing = (
+                (returns_derivative_1m[col].loc[idx] > returns_derivative_1m[col].loc[idx-pd.Timedelta(days=30)]) #and 
+                #(returns_derivative_3m[col].loc[idx] > returns_derivative_3m[col].loc[idx-pd.Timedelta(days=90)]) and
+                #(returns_derivative_6m[col].loc[idx] > returns_derivative_6m[col].loc[idx-pd.Timedelta(days=180)]) and
+                #(returns_derivative_1m[col].loc[idx] > returns_derivative_1m[col].loc[idx-pd.Timedelta(days=60)])
+            )
+            print(returns_derivative_1m[col].loc[idx])
+            print(returns_derivative_1m[col].loc[idx-pd.Timedelta(days=30)])
+            # If all derivatives are increasing, set the value to 1, otherwise 0
+            df_trend.loc[idx, col] = 1 if is_increasing else 0
+print(df_trend)
