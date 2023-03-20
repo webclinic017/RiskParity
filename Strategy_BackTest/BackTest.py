@@ -25,8 +25,10 @@ counter = 4
 #setup:
 ls        = 1
 monte     = 1
-rsi       = 1
-benchmark = 'ACWI'
+rsi       = 0
+Rf        = 0.2
+benchmark = ['VTI','BND']
+Scalar = 2000
 
 date1 = datetime.strptime(Start, "%Y-%m-%d")
 date2 = datetime.strptime(End, "%Y-%m-%d")
@@ -181,7 +183,7 @@ def max_sharpe_ratio_optimizer(mean_returns, cov_matrix, risk_free_rate):
 def monte_carlo(Y):
     log_return = np.log(Y/Y.shift(1))
     sample = Y.shape[0]
-    num_ports = number_of_iter*200
+    num_ports = number_of_iter * Scalar
     all_weights = np.zeros((num_ports, len(Y.columns)))
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
@@ -204,7 +206,7 @@ def monte_carlo(Y):
         vol_arr[ind] = np.sqrt(np.dot(weights.T,np.dot(log_return.cov()*sample, weights)))
 
         # Sharpe Ratio 
-        sharpe_arr[ind] = (ret_arr[ind])/vol_arr[ind]
+        sharpe_arr[ind] = (ret_arr[ind] - Rf)/vol_arr[ind]
     max_sh = sharpe_arr.argmax()
     #plot_frontier(vol_arr,ret_arr,sharpe_arr)
     sharpe_ratio = ret_arr[max_sh]/vol_arr[max_sh]
@@ -306,7 +308,12 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls, monte):
             if rng_start[-1] == i and prev_i is not None and prev_b is not None:
                 print(f"Last month {i}")
                 Y = ret[prev_i:prev_b]
-                w = optimize_risk_parity(Y_adjusted)
+                if monte == 0:
+                    w = optimize_risk_parity(Y_adjusted)
+                    #w = max_sharpe_ratio_optimizer(Y_adjusted.to_numpy(), Y_adjusted.cov.to_numpy(), 0.04)
+                    sharpe_ratio = 1
+                else:
+                    w, sharpe_ratio = monte_carlo(Y_adjusted) #Long
             else:
                 if ls == 0:
                     Y_LS = ret[i:b]
@@ -320,11 +327,10 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls, monte):
                 else:
                     Y = ret[i:b]
                     Y_adjusted = asset_trimmer(b, dummy_L_df, Y)
-                    Y_adjusted_cov = Y_adjusted.cov()
                     if not Y_adjusted.empty:
                         if monte == 0:
                             w = optimize_risk_parity(Y_adjusted)
-                            #w = max_sharpe_ratio_optimizer(Y_adjusted.to_numpy(), Y_adjusted_cov.to_numpy(), 0.04)
+                            #w = max_sharpe_ratio_optimizer(Y_adjusted.to_numpy(), Y_adjusted.cov.to_numpy(), 0.04)
                             sharpe_ratio = 1
                         else:
                             w, sharpe_ratio = monte_carlo(Y_adjusted) #Long
@@ -435,19 +441,23 @@ portfolio_return_concat = pd.DataFrame(pd.DataFrame(portfolio_return_concat))
 Bench_start = portfolio_return_concat.index.min()
 Bench_end   = portfolio_return_concat.index.max()
 
+bench_weights = [0.4,0.6]
 Bench = yf.download(benchmark, start=Bench_start, Bench_end=End)['Adj Close'].pct_change()
 Bench = pd.DataFrame(pd.DataFrame(Bench))
+Bench = Bench * bench_weights
+Bench = pd.DataFrame(Bench.sum(axis=1))
 Bench.iloc[0] = 0
 Bench = (1 + Bench).cumprod() * 10000
-Bench = Bench.rename(columns={'Adj Close': f'{benchmark}_Return'})
+#Bench = pd.DataFrame.set_axis('Bench_Return', axis=1)
 
+benchmark = 'Bench_Return'
+
+Bench.columns =['Bench_Return']
 portfolio_return_concat = portfolio_return_concat.sort_index(sort_remaining=False)
 
 merged_df = portfolio_return_concat
 merged_df.iloc[0] = 0
 merged_df = (1 + merged_df).cumprod() * 10000
-
-print(merged_df)
 
 def long_names(asset_classes, weight):
     mapping_dict = dict(zip(asset_classes['Asset'], asset_classes['Full_name']))
@@ -518,14 +528,14 @@ def portfolio_data(df, col, num_days, average_number_days):
     Average_Returns = df[f'{col}'].mean() * average_number_days
     std = df[f'{col}'].std() * average_number_days
     Sharpe_Ratio =  np.sqrt(average_number_days) * (Average_Returns / std)
-    return Net_Returns, Average_Returns, std, Sharpe_Ratio
+    return Net_Returns, std, Sharpe_Ratio
 
 def last_month_data(df, col):
     last_month_returns = df.loc[df.index.month == df.index[-2].month]
     last_month_mean_returns = last_month_returns[col].mean()
     last_month_std_returns = last_month_returns[col].std()
     last_month_sharpe_ratio = np.sqrt(12) * (last_month_mean_returns / last_month_std_returns)
-    return last_month_returns, last_month_mean_returns, last_month_std_returns, last_month_sharpe_ratio
+    return last_month_sharpe_ratio
 
 def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_array, Bench):
     # Calculate summary statistics for portfolio returns
@@ -536,18 +546,18 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
     returns.dropna(inplace=True)
 
     # Portfolio data:
-    Portfolio_Net_Returns, Portfolio_Average_Returns, Portfolio_std, Portfolio_Sharpe_Ratio = portfolio_data(returns, 'portfolio_return', num_days, average_number_days)
-    last_month_returns, last_month_mean_returns, last_month_std_returns, last_month_sharpe_ratio = last_month_data(returns, 'portfolio_return')
+    Portfolio_Net_Returns, Portfolio_std, Portfolio_Sharpe_Ratio = portfolio_data(returns, 'portfolio_return', num_days, average_number_days)
+    last_month_sharpe_ratio = last_month_data(returns, 'portfolio_return')
     # Bench data:
-    Bench_Net_Returns, Bench_Average_Returns, Bench_std, Bench_Sharpe_Ratio = portfolio_data(Bench, f'{benchmark}_Return', num_days, average_number_days)
-    last_month_bench, last_month_mean_bench, last_month_std_bench, last_month_sharpe_ratio_bench = last_month_data(Bench, f'{benchmark}_Return')
+    Bench_Net_Returns, Bench_std, Bench_Sharpe_Ratio = portfolio_data(Bench.pct_change(), f'{benchmark}', num_days, average_number_days)
+    last_month_sharpe_ratio_bench = last_month_data(Bench.pct_change(), f'{benchmark}')
  
     # Create a line chart of portfolio and benchmark returns
     fig = go.Figure()
 
     returns_df = returns_df.sort_index(ascending=False)
     fig.add_trace(go.Scatter(x=returns_df.index, y=returns_df['portfolio_return'], mode='lines', name='Portfolio Return'))
-    fig.add_trace(go.Scatter(x=Bench.index, y=Bench[f'{benchmark}_Return'], mode='lines', name=f'{benchmark} Returns'))
+    fig.add_trace(go.Scatter(x=Bench.index, y=Bench[f'{benchmark}'], mode='lines', name=f'{benchmark}'))
 
     corr_matrix = correlation_matrix(sharpe_array, 'sharpe')
     corr_matrix = corr_matrix.to_frame()
