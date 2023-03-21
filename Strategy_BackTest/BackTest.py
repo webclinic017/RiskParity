@@ -28,7 +28,7 @@ monte     = 1
 rsi       = 0
 Rf        = 0.2
 benchmark = ['VTI','BND']
-Scalar = 0.5 # 2000
+Scalar = 20000
 
 date1 = datetime.strptime(Start, "%Y-%m-%d")
 date2 = datetime.strptime(End, "%Y-%m-%d")
@@ -183,7 +183,7 @@ def max_sharpe_ratio_optimizer(mean_returns, cov_matrix, risk_free_rate):
 def monte_carlo(Y):
     log_return = np.log(Y/Y.shift(1))
     sample = Y.shape[0]
-    num_ports = 5 # number_of_iter * Scalar
+    num_ports = number_of_iter * Scalar
     all_weights = np.zeros((num_ports, len(Y.columns)))
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
@@ -210,6 +210,7 @@ def monte_carlo(Y):
     max_sh = sharpe_arr.argmax()
     #plot_frontier(vol_arr,ret_arr,sharpe_arr)
     sharpe_ratio = ret_arr[max_sh]/vol_arr[max_sh]
+    print(sharpe_ratio)
     #To-do:
     #enable short selling
     #enable leverage
@@ -262,7 +263,6 @@ def plot_frontier(vol_arr,ret_arr,sharpe_arr):
     plt.xlabel('Volatility')
     plt.ylabel('Return')
     plt.scatter(max_sr_vol, max_sr_ret, c='red', s=50, edgecolors='black')
-
 ############################################################
 # Building a loop that estimate optimal portfolios on
 # rebalancing dates
@@ -300,6 +300,7 @@ def forfrontier(arr, i):
 # Backtesting
 ############################################################
 def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls, monte):
+    print("Iterating: "number_of_iter * Scalar)
     vol_arr = ret_arr = sharpe_arr = y_next = portfolio_return_concat = portfolio_return = weight_concat = sharpe_array_concat = vol_arr_concat = ret_arr_concat = sharpe_arr_concat = pd.DataFrame([])
     for i in rng_start:
         rng_end = pd.date_range(i, periods=1, freq='M')
@@ -529,7 +530,6 @@ def generate_weights_table(weights_df, asset_classes):
     )
     return weights_table
 
-
 # Create the plotly dash
 
 def portfolio_data(df, col, num_days, average_number_days):
@@ -540,39 +540,11 @@ def portfolio_data(df, col, num_days, average_number_days):
     return Net_Returns, std, Sharpe_Ratio
 
 def last_month_data(df, col):
-    last_month_returns = df.loc[df.index.month == df.index[-2].month]
-    last_month_mean_returns = last_month_returns[col].mean()
-    last_month_std_returns = last_month_returns[col].std()
-    last_month_sharpe_ratio = np.sqrt(12) * (last_month_mean_returns / last_month_std_returns)
+    last_month_returns = df.resample('M').mean().iloc[-2]
+    last_month_std_returns = df.resample('M').std().iloc[-2]
+    last_month_sharpe_ratio = np.sqrt(12) * (last_month_returns / last_month_std_returns)
+    last_month_sharpe_ratio = last_month_sharpe_ratio.astype(np.float64).values
     return last_month_sharpe_ratio
-
-def frontier_chart(vol_arr, ret_arr, sharpe_arr, selected_index):
-    vol_arr = vol_arr.T
-    ret_arr = ret_arr.T
-    sharpe_arr = sharpe_arr.T
-    print(ret_arr)
-    print(vol_arr)
-    print(sharpe_arr)
-
-    trace = go.Scatter(x=vol_arr[selected_index], y=ret_arr[selected_index], mode='markers', 
-                    marker=dict(color=sharpe_arr[selected_index], colorscale='Viridis', size=8))
-
-        # create the layout
-    layout = go.Layout(title='Efficient Frontier',
-                    xaxis_title='Volatility',
-                    yaxis_title='Returns',
-                    coloraxis_colorbar=dict(title='Sharpe Ratio'))
-    sharpe_max = sharpe_arr[selected_index].max()
-    print(sharpe_max)
-    location = sharpe_arr[sharpe_arr == sharpe_max].stack().index.tolist()
-    ret_max = ret_arr[location]
-    print(ret_max)
-    vol_max = vol_arr[location]
-    
-    print(ret_max, vol_max,sharpe_max)
-    # plot the dataplt.figure(figsize=(12,8))
-    frontier = go.Figure(data=[trace], layout=layout)
-    return frontier
 
 def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_array, Bench, vol_arr, ret_arr, sharpe_arr):
     # Calculate summary statistics for portfolio returns
@@ -658,8 +630,8 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
             ]),
             html.Tr(children=[
                 html.Td('L/M sharpe Ratio'),
-                html.Td(str(round(last_month_sharpe_ratio, 4))),
-                html.Td(str(round(last_month_sharpe_ratio_bench, 4)))
+                html.Td(str(round(float(last_month_sharpe_ratio), 4))),
+                html.Td(str(round(float(last_month_sharpe_ratio_bench), 4)))
             ])
         ])
        
@@ -689,24 +661,9 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
                    'height': '90vh',
                    'font-family': 'Arial',
                    'font-size': '12px',}
-    ),
-    html.H3([
-    dcc.Graph(id='efficient-frontier', 
-                figure=frontier_chart(vol_arr, ret_arr, sharpe_arr, ret_arr.index[0])),
-    dcc.Dropdown(id='vol-dropdown', 
-                 options=ret_arr_list, #[0,1,2,3,4]
-                 value=0)
-        ])
-    ])
-    @app.callback(
-        Output('efficient-frontier', 'figure'),
-        [Input('vol-dropdown', 'value')]
     )
+    ])
     
-    def update_graph(selected_index):
-        frontier = frontier_chart(vol_arr, ret_arr, sharpe_arr, selected_index)
-        return frontier
-
     return app
 
 
