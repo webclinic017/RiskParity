@@ -300,7 +300,7 @@ def forfrontier(arr, i):
 # Backtesting
 ############################################################
 def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls, monte):
-    print("Iterating: "number_of_iter * Scalar)
+    print("Iterating: ", number_of_iter * Scalar)
     vol_arr = ret_arr = sharpe_arr = y_next = portfolio_return_concat = portfolio_return = weight_concat = sharpe_array_concat = vol_arr_concat = ret_arr_concat = sharpe_arr_concat = pd.DataFrame([])
     for i in rng_start:
         rng_end = pd.date_range(i, periods=1, freq='M')
