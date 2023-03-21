@@ -28,7 +28,7 @@ monte     = 1
 rsi       = 0
 Rf        = 0.2
 benchmark = ['VTI','BND']
-Scalar = 20000
+Scalar = 2000
 
 date1 = datetime.strptime(Start, "%Y-%m-%d")
 date2 = datetime.strptime(End, "%Y-%m-%d")
@@ -675,12 +675,12 @@ app.run_server(debug=False)
 
 '''
 Next steps:
--Enable short selling.
--Enable leverage.
--Instead of just printing the W of the best sharpe ratio, show me the top 10 (not strictly 10, but the principal counts) sharpes W and show me the average top 10,
+
 -More assets enabled.
 -More asset selection culling.
--Hovering of asset names on the weights table and the correlation matrix.
+
+-Incorporate the capm model for each assets expected returns.
+
 '''
 
 
