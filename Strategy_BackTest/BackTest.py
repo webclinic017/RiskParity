@@ -8,6 +8,7 @@ from datetime import datetime
 from calendar import monthrange
 from dateutil.relativedelta import relativedelta
 import dash
+from scipy.stats import multivariate_normal
 from dash.dependencies import Input, Output
 import cvxpy as cp
 import dash_core_components as dcc
@@ -183,17 +184,22 @@ def max_sharpe_ratio_optimizer(mean_returns, cov_matrix, risk_free_rate):
 def monte_carlo(Y):
     log_return = np.log(Y/Y.shift(1))
     sample = Y.shape[0]
-    num_ports = number_of_iter * Scalar
+    num_ports = number_of_iter #* Scalar
     all_weights = np.zeros((num_ports, len(Y.columns)))
     ret_arr = np.zeros(num_ports)
     vol_arr = np.zeros(num_ports)
     sharpe_arr = np.zeros(num_ports)
+    mu = log_return.mean().values
+    sigma = log_return.cov().values
+    mvn = multivariate_normal(mean=mu, cov=sigma, allow_singular=True)
+
 
     for ind in range(num_ports): 
         # weights 
-        weights = np.random.dirichlet(np.ones(len(Y.columns)), size=1)
-        weights = np.squeeze(weights)
-        
+        #weights = np.random.chisquare(np.ones(len(Y.columns)), size=1)
+        #weights = np.squeeze(weights)
+        weights = mvn.rvs()
+
         # Enforce minimum weight
         weights = np.maximum(weights, 0.05)
         weights = weights/np.sum(weights)
@@ -208,12 +214,9 @@ def monte_carlo(Y):
         # Sharpe Ratio 
         sharpe_arr[ind] = (ret_arr[ind] - Rf)/vol_arr[ind]
     max_sh = sharpe_arr.argmax()
-    #plot_frontier(vol_arr,ret_arr,sharpe_arr)
+    plot_frontier(vol_arr,ret_arr,sharpe_arr)
     sharpe_ratio = ret_arr[max_sh]/vol_arr[max_sh]
-    print(sharpe_ratio)
-    #To-do:
-    #enable short selling
-    #enable leverage
+
     return all_weights[max_sh,:], sharpe_ratio, vol_arr,ret_arr,sharpe_arr
 
 def monte_carlo_SL(Y, short_df):
