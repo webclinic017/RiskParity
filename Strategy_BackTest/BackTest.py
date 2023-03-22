@@ -452,10 +452,10 @@ Next steps:
 -More assets enabled.
 -More asset selection culling.
 -Incorporate the capm model for each assets expected returns.
-'''
 
+-Incorporate a rally pivot concept, whereby it will pivot out of an asset if it its recent prices of the month are poor, e.g., a pivot.
+-It is a bubble indicator.
 
-'''
 New project:
 -For each month, rate us on how well we selected assets based on the next months weightings, if the weightings are within a bounds then we are ok, if they are 
     below the previous month then take note that we were in too deep with this asset class, so next time we think of re-balancing by increasing this asset, we can essentially rate our scores.
