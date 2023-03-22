@@ -28,7 +28,7 @@ monte     = 1
 rsi       = 0
 Rf        = 0.2
 benchmark = ['VTI','BND']
-Scalar = 2000
+Scalar = 1000
 
 date1 = datetime.strptime(Start, "%Y-%m-%d")
 date2 = datetime.strptime(End, "%Y-%m-%d")
@@ -156,6 +156,7 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls, monte):
                 prev_i = i
                 prev_b = b
                 portfolio_return_concat = pd.concat([portfolio_return, portfolio_return_concat], axis=0) #Long
+    portfolio_return_concat = pd.DataFrame(pd.DataFrame(portfolio_return_concat))
     return portfolio_return_concat, weight_concat
 
 # Function to drop if the asset is not trending.
@@ -216,11 +217,8 @@ weight_concat = weight_concat.drop(index=weight_concat.index[-1])
 # Spy returns & portfolio returns
 ############################################################
 
-portfolio_return_concat = pd.DataFrame(pd.DataFrame(portfolio_return_concat))
 
 Bench_start = portfolio_return_concat.index.min()
-
-#Bench_end   = portfolio_return_concat.index.max()
 
 def bench(Bench_start, benchmark):
     Bench_W = Bench = pd.DataFrame([])
@@ -328,7 +326,6 @@ def last_month_data(df, col):
 def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_array, Bench):
     # Calculate summary statistics for portfolio returns
     num_years = (returns_df.index.max() - returns_df.index.min()).days / 365
-    print(num_years)
     num_days = len(returns_df)
     average_number_days = num_days/num_years
     returns = returns_df.pct_change()
