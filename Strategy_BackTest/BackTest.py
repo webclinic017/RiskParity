@@ -9,14 +9,11 @@ from calendar import monthrange
 from dateutil.relativedelta import relativedelta
 import dash
 from dash.dependencies import Input, Output
-import cvxpy as cp
 import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
-import concurrent.futures
-from scipy.optimize import minimize, Bounds, LinearConstraint, NonlinearConstraint
 #from optimizer import optimizer_backtest
-from Trend_Following import dummy_L_df, ret, Start, End, dummy_LS_df, number_of_iter, asset_classes, rsi_df_trend
+from Trend_Following import ret, Start, End, number_of_iter, asset_classes, rsi_df_trend, rolling_short_df, rolling_medium_df, rolling_long_df
 warnings.filterwarnings("ignore")
 ############################################################
 # Variables and setup
@@ -130,7 +127,7 @@ def forfrontier(arr, i):
 ############################################################
 # Backtesting
 ############################################################
-def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls, monte):
+def backtest(rng_start, ret, ret_pct, rolling_short_df, rolling_medium_df, rolling_long_df):
     print("Iterating: ", number_of_iter * Scalar)
     y_next = portfolio_return_concat = portfolio_return = weight_concat = sharpe_array_concat = pd.DataFrame([])
     for i in rng_start:
@@ -144,13 +141,13 @@ def backtest(rng_start, ret, ret_pct, dummy_L_df, dummy_LS_df, ls, monte):
 
             else:
                 Y = ret[i:b]
-                Y_adjusted = asset_trimmer(b, dummy_L_df, Y)
+                Y_adjusted = asset_trimmer(b, rolling_long_df, Y)
                 if not Y_adjusted.empty:
                     w, sharpe_ratio = monte_carlo(Y_adjusted) #Long
                     next_i,next_b = next_month(i)
                     weight_concat = weightings(w, Y_adjusted, next_i, weight_concat, sharpe_array_concat, sharpe_ratio)
                     y_next = ret_pct[next_i:next_b]
-                    Y_adjusted_next_L = asset_trimmer(b, dummy_L_df, y_next) #Long
+                    Y_adjusted_next_L = asset_trimmer(b, rolling_long_df, y_next) #Long
                     portfolio_return = portfolio_returns(w, Y_adjusted_next_L) #Long
 
                 prev_i = i
@@ -199,12 +196,12 @@ def correlation_matrix(sharpe_array, column):
 ############################################################
 
 if rsi == 1:
-    dummy_L_df = rsi_df_trend
+    rolling_long_df = rsi_df_trend
 else:
-    dummy_L_df = dummy_L_df
+    rolling_long_df = rolling_long_df
 
 # Data management of weights and returns.
-portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret.pct_change(), dummy_L_df, dummy_LS_df, ls, monte)
+portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret.pct_change(), rolling_short_df, rolling_medium_df, rolling_long_df)
 
 sharpe_array = weight_concat.copy()
 weight_concat.drop('sharpe', axis=1, inplace=True)

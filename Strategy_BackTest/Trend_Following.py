@@ -8,7 +8,9 @@ import matplotlib.pyplot as plt
 Start = '2010-01-01'
 End = date.today().strftime("%Y-%m-%d")
 number_of_iter = 1
-days = 100
+long    = 200
+medium  = 100
+short   = 50
 
 prices, asset_classes, asset = datamanagement_1(Start, End)
 ret = data_management_2(prices, asset_classes, asset)
@@ -17,6 +19,7 @@ def calculate_rolling_average(ret, window):
     rolling_df = pd.DataFrame()
     for column in ret.columns:
         rolling_df[column] = ret[column].rolling(window=window).mean()
+    rolling_df = dummy_sma(rolling_df, ret, window)
     return rolling_df
 
 # Now we need to use this to determine what assets to hold. So for each month, we need to know if the asset is trending.
@@ -32,11 +35,13 @@ def dummy_sma(rolling_df, ret, days):
         # Compare the prices of the asset for each date
         dummy_L_df[asset_name] = (rolling_df[asset_name] < ret[asset_name]).astype(int)
     dummy_L_df  = dummy_L_df.resample('M').mean()
+
     return dummy_L_df
 
-rolling_df = calculate_rolling_average(ret, min(days, len(ret)))
-dummy_L_df = dummy_sma(rolling_df, ret, days)
- 
+rolling_short_df   = calculate_rolling_average(ret, min(short, len(ret)))
+rolling_medium_df  = calculate_rolling_average(ret, min(medium, len(ret)))
+rolling_long_df    = calculate_rolling_average(ret, min(long, len(ret)))
+
 '''
 Do I need a shorter  timeframe?
 
