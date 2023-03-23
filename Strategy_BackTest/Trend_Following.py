@@ -5,20 +5,21 @@ import numpy as np
 import math
 from datetime import date
 import matplotlib.pyplot as plt
-Start = '2010-01-01'
+Start = '2020-01-01'
 End = date.today().strftime("%Y-%m-%d")
 number_of_iter = 1
 long    = 200
 medium  = 100
-short   = 50
+short   = 30
 
 prices, asset_classes, asset = datamanagement_1(Start, End)
 ret = data_management_2(prices, asset_classes, asset)
 
 def calculate_rolling_average(ret, window):
+    ret = ret.dropna()
     rolling_df = pd.DataFrame()
     for column in ret.columns:
-        rolling_df[column] = ret[column].rolling(window=window).mean()
+        rolling_df[column] = ret[column].rolling(window=200).mean()
     rolling_df = dummy_sma(rolling_df, ret, window)
     return rolling_df
 
@@ -27,14 +28,13 @@ def calculate_rolling_average(ret, window):
 
 def dummy_sma(rolling_df, ret, days):
     dummy_L_df = pd.DataFrame(index=rolling_df.index)
-    dummy_LS_df = pd.DataFrame(index=rolling_df.index)
     for asset_name in rolling_df.columns:
     # Skip non-numeric columns
         if not np.issubdtype(rolling_df[asset_name].dtype, np.number):
             continue
         # Compare the prices of the asset for each date
         dummy_L_df[asset_name] = (rolling_df[asset_name] < ret[asset_name]).astype(int)
-    dummy_L_df  = dummy_L_df.resample('M').mean()
+    #dummy_L_df  = dummy_L_df.resample('M').mean()
 
     return dummy_L_df
 
@@ -42,8 +42,21 @@ rolling_short_df   = calculate_rolling_average(ret, min(short, len(ret)))
 rolling_medium_df  = calculate_rolling_average(ret, min(medium, len(ret)))
 rolling_long_df    = calculate_rolling_average(ret, min(long, len(ret)))
 
+df_Long_short = pd.DataFrame([])
+
+for asset_name in rolling_long_df.columns:
+    # If P> 200ma, and P < 30ma, then 0 ,1 
+
+    df_Long_short[asset_name] = ((rolling_short_df[asset_name] ==1) & (rolling_long_df[asset_name]==1)).astype(int)
+
+df_Long_short  = df_Long_short.resample('M').mean()
+
+print(df_Long_short)
+
+
 '''
 Do I need a shorter  timeframe?
+So if the long term trend is up, and say short term trend is down, then the market has pivoted and we don't want to invest in that asset.
 
 '''
 
