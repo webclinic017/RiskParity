@@ -13,7 +13,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
 #from optimizer import optimizer_backtest
-from Trend_Following import ret, Start, End, number_of_iter, asset_classes, rsi_df_trend, rolling_short_df, rolling_medium_df, rolling_long_df
+from Trend_Following import ret, Start, End, number_of_iter, asset_classes, rsi_df_trend, rolling_short_df, rolling_medium_df, rolling_long_df, df_long_short
 warnings.filterwarnings("ignore")
 ############################################################
 # Variables and setup
@@ -141,13 +141,13 @@ def backtest(rng_start, ret, ret_pct, rolling_short_df, rolling_medium_df, rolli
 
             else:
                 Y = ret[i:b]
-                Y_adjusted = asset_trimmer(b, rolling_long_df, Y)
+                Y_adjusted = asset_trimmer(b, df_long_short, Y)
                 if not Y_adjusted.empty:
                     w, sharpe_ratio = monte_carlo(Y_adjusted) #Long
                     next_i,next_b = next_month(i)
                     weight_concat = weightings(w, Y_adjusted, next_i, weight_concat, sharpe_array_concat, sharpe_ratio)
                     y_next = ret_pct[next_i:next_b]
-                    Y_adjusted_next_L = asset_trimmer(b, rolling_long_df, y_next) #Long
+                    Y_adjusted_next_L = asset_trimmer(b, df_long_short, y_next) #Long
                     portfolio_return = portfolio_returns(w, Y_adjusted_next_L) #Long
 
                 prev_i = i
@@ -201,7 +201,7 @@ else:
     rolling_long_df = rolling_long_df
 
 # Data management of weights and returns.
-portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret.pct_change(), rolling_short_df, rolling_medium_df, rolling_long_df)
+portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret.pct_change(), rolling_short_df, rolling_medium_df, rolling_long_df, df_long_short)
 
 sharpe_array = weight_concat.copy()
 weight_concat.drop('sharpe', axis=1, inplace=True)
