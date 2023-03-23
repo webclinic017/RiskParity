@@ -7,7 +7,7 @@ from datetime import date
 import matplotlib.pyplot as plt
 Start = '2010-01-01'
 End = date.today().strftime("%Y-%m-%d")
-number_of_iter = 50
+number_of_iter = 1
 days = 100
 
 prices, asset_classes, asset = datamanagement_1(Start, End)
@@ -29,18 +29,19 @@ def dummy_sma(rolling_df, ret, days):
     # Skip non-numeric columns
         if not np.issubdtype(rolling_df[asset_name].dtype, np.number):
             continue
-            
         # Compare the prices of the asset for each date
         dummy_L_df[asset_name] = (rolling_df[asset_name] < ret[asset_name]).astype(int)
-        dummy_LS_df[asset_name] = np.where(rolling_df[asset_name] < ret[asset_name], 0, -1)
-    Dummy_L_df_derivative = dummy_L_df
     dummy_L_df  = dummy_L_df.resample('M').mean()
-    dummy_LS_df = dummy_LS_df.resample('M').mean()
-    return dummy_L_df, dummy_LS_df, Dummy_L_df_derivative
+    return dummy_L_df
 
 rolling_df = calculate_rolling_average(ret, min(days, len(ret)))
-dummy_L_df, dummy_LS_df, Dummy_L_df_derivative = dummy_sma(rolling_df, ret, days)
+dummy_L_df = dummy_sma(rolling_df, ret, days)
  
+'''
+Do I need a shorter  timeframe?
+
+'''
+
 def calculate_monthly_rsi(df):
     # Calculate monthly RSI for each column (i.e., asset)
     rsi_dfs = pd.DataFrame([])
