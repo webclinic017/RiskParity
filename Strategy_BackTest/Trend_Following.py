@@ -5,7 +5,7 @@ import numpy as np
 import math
 from datetime import date
 import matplotlib.pyplot as plt
-Start = '2010-01-01'
+Start = '2015-01-01'
 End = date.today().strftime("%Y-%m-%d")
 number_of_iter = 1
 long    = 200
@@ -14,7 +14,7 @@ short   = 30
 
 prices, asset_classes, asset = datamanagement_1(Start, End)
 ret = data_management_2(prices, asset_classes, asset)
-
+print(ret)
 def calculate_rolling_average(ret, window):
     ret = ret.dropna()
     rolling_df = pd.DataFrame()
@@ -50,14 +50,14 @@ for asset_name in rolling_long_df.columns:
     df_Long_short[asset_name] = ((rolling_short_df[asset_name] ==1) & (rolling_long_df[asset_name]==1)).astype(int)
 
 df_Long_short  = df_Long_short.resample('M').mean()
-
 print(df_Long_short)
 
 
 '''
 Do I need a shorter  timeframe?
 So if the long term trend is up, and say short term trend is down, then the market has pivoted and we don't want to invest in that asset.
-
+Is a rally too good to be true?
+Like look at XOP June 2022, is that really worth it?
 '''
 
 def calculate_monthly_rsi(df):
