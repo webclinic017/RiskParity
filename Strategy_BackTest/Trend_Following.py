@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 Start = '2010-01-01'
 End = date.today().strftime("%Y-%m-%d")
 number_of_iter = 50
+days = 100
 
 prices, asset_classes, asset = datamanagement_1(Start, End)
 ret = data_management_2(prices, asset_classes, asset)
@@ -21,7 +22,7 @@ def calculate_rolling_average(ret, window):
 # Now we need to use this to determine what assets to hold. So for each month, we need to know if the asset is trending.
 # To do this, I think for each day, we can have a dummy, 1 for above sma and 2 for below sma.
 
-def dummy_sma(rolling_df, ret):
+def dummy_sma(rolling_df, ret, days):
     dummy_L_df = pd.DataFrame(index=rolling_df.index)
     dummy_LS_df = pd.DataFrame(index=rolling_df.index)
     for asset_name in rolling_df.columns:
@@ -37,8 +38,8 @@ def dummy_sma(rolling_df, ret):
     dummy_LS_df = dummy_LS_df.resample('M').mean()
     return dummy_L_df, dummy_LS_df, Dummy_L_df_derivative
 
-rolling_df = calculate_rolling_average(ret, min(200, len(ret)))
-dummy_L_df, dummy_LS_df, Dummy_L_df_derivative = dummy_sma(rolling_df, ret)
+rolling_df = calculate_rolling_average(ret, min(days, len(ret)))
+dummy_L_df, dummy_LS_df, Dummy_L_df_derivative = dummy_sma(rolling_df, ret, days)
  
 def calculate_monthly_rsi(df):
     # Calculate monthly RSI for each column (i.e., asset)
