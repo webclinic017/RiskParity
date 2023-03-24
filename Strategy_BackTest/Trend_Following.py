@@ -5,7 +5,7 @@ import numpy as np
 import math
 from datetime import date
 import matplotlib.pyplot as plt
-Start = '2015-01-01'
+Start = '2018-01-01'
 End = date.today().strftime("%Y-%m-%d")
 number_of_iter = 1
 long    = 200
@@ -49,8 +49,6 @@ for asset_name in rolling_long_df.columns:
     df_Long_short[asset_name] = ((rolling_short_df[asset_name] ==1) & (rolling_long_df[asset_name]==1)).astype(int)
 
 df_Long_short  = df_Long_short.resample('M').mean()
-print(df_Long_short.index.to_list())
-
 
 '''
 Do I need a shorter  timeframe?
@@ -62,94 +60,58 @@ Like look at XOP June 2022, is that really worth it? Or, UNG Dec 2018, I need to
 
 def calculate_monthly_rsi(df):
     # Calculate monthly RSI for each column (i.e., asset)
-    rsi_dfs = pd.DataFrame([])
-    data_monthly = pd.DataFrame([])
-    for col in df.columns:
+    rsi_df = rsi_value_df = rsi_value = pd.DataFrame([])
+    delta = pd.DataFrame([])
+    time_period = 5
+
+    for col in df.columns: 
         # Calculate monthly returns for this asset
-        data_monthly['returns'] = df[col].pct_change()
+        delta[col] = df[col].diff()
+        gain = delta.where(delta > 0, 0)
+        loss = -delta.where(delta < 0, 0)
+        # Calculate the average gains and losses over the time period
+        avg_gain = gain.rolling(window=time_period).mean()
+        avg_loss = loss.rolling(window=time_period).mean()
 
-        # Calculate RSI for each month
-        rsis = []
-        for i in range(1, len(data_monthly)):
-            month_data = data_monthly.iloc[i-1:i+1]
-            gain = month_data[month_data['returns'] > 0]['returns'].mean()
-            loss = -month_data[month_data['returns'] < 0]['returns'].mean()
-            if loss == 0:
-                rs = 100
-            else:
-                rs = gain / loss
-            if math.isnan(gain):
-                rsi=0
-            elif math.isnan(loss):
-                rsi=100
-            else:
-                rsi = 100 - (100 / (1 + rs))
-            if math.isnan(rsi):
-                print(gain, '/', loss)
-            rsis.append(rsi)
+        # Calculate the relative strength (RS)
+        rs = avg_gain / avg_loss
+        # Calculate the RSI
+        rsi = 100 - (100 / (1 + rs))
 
-        # Create DataFrame with RSI values for each month for this asset
-        dates = data_monthly.index[1:]
-        rsi_df = pd.DataFrame({'Date': dates, 'RSI': rsis})
-        rsi_df.set_index('Date', inplace=True)
-        rsi_df = rsi_df.rename(columns={'RSI': col})
-        rsi_dfs = pd.concat([rsi_dfs, rsi_df], axis=1, join='outer')
+        # Combine the RSI value and signal into a single DataFrame
+    rsi_df = pd.concat([rsi_df, rsi], axis=1)
+
     # Combine RSI DataFrames for all assets into one DataFrame
-    return rsi_dfs
+    return rsi_df
 
-def get_market_trend(rsi_df):
-    """
-    Determines whether the asset is in a bull or bear market based on its RSI values.
-    
-    Parameters:
-    rsi_df (pandas.DataFrame): The RSI DataFrame for an asset.
-    
-    Returns:
-    int: 1 if the asset is in a bull market, 0 if it is in a bear market.
-    """
-    last_rsi = pd.DataFrame([])
-    for asset_name in rsi_df.columns:
-        last_rsi[asset_name] = (rsi_df[asset_name] >= 0.5).astype(int)
-        
-    return last_rsi
+
 
 rsi_df = calculate_monthly_rsi(ret)
-rsi_df_trend = get_market_trend(rsi_df)
 # Now, if the row for a specific contract is <0, then we can exclude it from our sample set, and it is not needed. This is part of the asset selection component.
 
+count = rsi_df.groupby(pd.Grouper(freq='M')).apply(lambda x: (x > 70).sum())
+resampled = count.where(count < 10, 0).where(count >= 10, 1).resample('M').last()
+
+
+month_df = new_cool_df = pd.DataFrame([])
+for col in df_Long_short.columns:
+    month_df = pd.DataFrame(index=df_Long_short.index)
+    month_df['Month'] = df_Long_short.index.month
+
+    # Merge the month_df and resampled DataFrames on the month index
+    merged_df = month_df.merge(resampled, left_index=True, right_index=True)
+
+    # Apply the desired condition to create the new DataFrame
+    new_df = merged_df.apply(lambda x: 1 if (x['Month'] == 1 and x[0] == 1) else 0, axis=1)
+    new_df = new_df.rename(columns={new_df.columns[0]: col})
+    print(new_df)
+    new_cool_df = pd.concat([new_df,new_cool_df])
+print(new_cool_df)
+
+
 '''
+For the RSI, is there some kind of curve to tell me that in nov we shoul
+
 Here, I am going to calculate the derivative of the dummy_long_dfs to see if we can track trends well there.
 Is it the derivative of my dummy df, or my trend df?
 '''
-def deriv(ret):
-    # Convert the index to a pandas Timestamp index
-    ret.index = pd.to_datetime(ret.index)
-    # Calculate derivatives for 1-month, 3-month, and 6-month returns
-    returns_derivative_1m = ret.pct_change(1)
-    returns_derivative_3m = ret.pct_change(3)
-    returns_derivative_6m = ret.pct_change(6)
-
-    # Calculate rolling derivatives for 3-month and 6-month returns
-    returns_derivative_3m = returns_derivative_3m.rolling(window=3, min_periods=3).apply(lambda x: x[2]/x[0]-1)
-    returns_derivative_6m = returns_derivative_6m.rolling(window=6, min_periods=6).apply(lambda x: x[5]/x[0]-1)
-    # Create a new DataFrame to store trend data
-    df_trend = pd.DataFrame(index=ret.index, columns=ret.columns)
-    # Loop over the index of the df_trend DataFrame
-    for idx in df_trend.index:
-        # Check if the index is present in both DataFrames
-        if idx in returns_derivative_1m.index and idx in returns_derivative_3m.index and idx in returns_derivative_6m.index:
-            print("Here")
-            for col in returns_derivative_1m.columns:
-                print("There")
-                print()
-                is_increasing = (
-                    (returns_derivative_1m[col].loc[idx] > returns_derivative_1m[col].loc[idx-pd.Timedelta(days=30)]) #and 
-                    #(returns_derivative_3m[col].loc[idx] > returns_derivative_3m[col].loc[idx-pd.Timedelta(days=90)]) and
-                    #(returns_derivative_6m[col].loc[idx] > returns_derivative_6m[col].loc[idx-pd.Timedelta(days=180)]) and
-                    #(returns_derivative_1m[col].loc[idx] > returns_derivative_1m[col].loc[idx-pd.Timedelta(days=60)])
-                )
-                print(returns_derivative_1m[col].loc[idx])
-                print(returns_derivative_1m[col].loc[idx-pd.Timedelta(days=30)])
-                # If all derivatives are increasing, set the value to 1, otherwise 0
-                df_trend.loc[idx, col] = 1 if is_increasing else 0
-    print(df_trend)
