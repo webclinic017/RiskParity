@@ -22,7 +22,7 @@ warnings.filterwarnings("ignore")
 #setup (1 = True):
 ls        = 1
 monte     = 1
-rsi       = 0
+rsi       = 1
 Rf        = 0.2
 benchmark = ['VTI','BND']
 Scalar = 1000

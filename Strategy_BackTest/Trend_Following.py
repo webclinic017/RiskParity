@@ -14,7 +14,6 @@ short   = 30
 
 prices, asset_classes, asset = datamanagement_1(Start, End)
 ret = data_management_2(prices, asset_classes, asset)
-print(ret)
 def calculate_rolling_average(ret, window):
     ret = ret.dropna()
     rolling_df = pd.DataFrame()
@@ -50,23 +49,24 @@ for asset_name in rolling_long_df.columns:
     df_Long_short[asset_name] = ((rolling_short_df[asset_name] ==1) & (rolling_long_df[asset_name]==1)).astype(int)
 
 df_Long_short  = df_Long_short.resample('M').mean()
-print(df_Long_short)
+print(df_Long_short.index.to_list())
 
 
 '''
 Do I need a shorter  timeframe?
 So if the long term trend is up, and say short term trend is down, then the market has pivoted and we don't want to invest in that asset.
 Is a rally too good to be true?
-Like look at XOP June 2022, is that really worth it?
+Like look at XOP June 2022, is that really worth it? Or, UNG Dec 2018, I need to differentiate between a rally and a spike hmm
+
 '''
 
 def calculate_monthly_rsi(df):
     # Calculate monthly RSI for each column (i.e., asset)
     rsi_dfs = pd.DataFrame([])
+    data_monthly = pd.DataFrame([])
     for col in df.columns:
         # Calculate monthly returns for this asset
-        data_monthly = df[[col]].resample('M').last()
-        data_monthly['returns'] = data_monthly[col].pct_change()
+        data_monthly['returns'] = df[col].pct_change()
 
         # Calculate RSI for each month
         rsis = []
