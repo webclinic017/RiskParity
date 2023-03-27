@@ -41,7 +41,6 @@ def dummy_sma(rolling_df, ret):
 
     return dummy_L_df
 dummy_L_df = calculate_rolling_average(ret, 200)
-print(dummy_L_df)
 
 '''
 rolling_short_df   = calculate_rolling_average(ret, min(short, len(ret)))
