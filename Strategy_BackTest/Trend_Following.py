@@ -89,7 +89,7 @@ rsi_df = calculate_monthly_rsi(ret)
 # Now, if the row for a specific contract is <0, then we can exclude it from our sample set, and it is not needed. This is part of the asset selection component.
 
 count = rsi_df.groupby(pd.Grouper(freq='M')).apply(lambda x: (x > 70).sum())
-new_cool_df = count.where(count <= 10, 0).where(count > 10, 1).resample('M').last()
+new_cool_df = count.where(count <= 10, 1).where(count > 10, 0).resample('M').last()
 
 print(new_cool_df.to_string())
 '''
