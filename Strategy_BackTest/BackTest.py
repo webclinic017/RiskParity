@@ -199,7 +199,6 @@ if   trend == 'rsi':
     rolling_long_df = rsi_df
 elif trend == 'sma':
     rolling_long_df = dummy_L_df
-print(dummy_L_df)
 # Data management of weights and returns.
 portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret.pct_change(), rolling_long_df)
 
