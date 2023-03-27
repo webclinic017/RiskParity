@@ -49,7 +49,6 @@ for asset_name in rolling_long_df.columns:
     df_Long_short[asset_name] = ((rolling_short_df[asset_name] ==1) & (rolling_long_df[asset_name]==1)).astype(int)
 
 df_Long_short  = df_Long_short.resample('M').mean()
-print(df_Long_short)
 '''
 Do I need a shorter  timeframe?
 So if the long term trend is up, and say short term trend is down, then the market has pivoted and we don't want to invest in that asset.
@@ -92,7 +91,7 @@ rsi_df = calculate_monthly_rsi(ret)
 count = rsi_df.groupby(pd.Grouper(freq='M')).apply(lambda x: (x > 70).sum())
 new_cool_df = count.where(count <= 10, 0).where(count > 10, 1).resample('M').last()
 
-
+print(new_cool_df.to_string())
 '''
 For the RSI, is there some kind of curve to tell me that in nov we shoul
 
