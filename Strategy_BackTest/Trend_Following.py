@@ -103,10 +103,11 @@ for col in df_Long_short.columns:
 
     # Apply the desired condition to create the new DataFrame
     new_df = merged_df.apply(lambda x: 1 if (x['Month'] == 1 and x[0] == 1) else 0, axis=1)
+    new_df = pd.DataFrame(new_df)
     new_df = new_df.rename(columns={new_df.columns[0]: col})
-    print(new_df)
-    new_cool_df = pd.concat([new_df,new_cool_df])
-print(new_cool_df)
+    new_cool_df = new_df
+    #new_cool_df = pd.concat([new_df,new_cool_df])
+print(new_df)
 
 
 '''
