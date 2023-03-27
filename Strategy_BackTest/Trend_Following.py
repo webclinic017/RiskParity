@@ -14,7 +14,8 @@ short   = 30
 
 prices, asset_classes, asset = datamanagement_1(Start, End)
 ret = data_management_2(prices, asset_classes, asset)
-def calculate_rolling_average(ret):
+
+def calculate_rolling_average(ret, days):
     ret = ret.dropna()
     rolling_df = pd.DataFrame()
     for column in ret.columns:
@@ -37,7 +38,7 @@ def dummy_sma(rolling_df, ret):
 
     return dummy_L_df
 
-dummy_L_df = calculate_rolling_average(ret)
+dummy_L_df = calculate_rolling_average(ret, 200)
 
 rolling_short_df   = calculate_rolling_average(ret, min(short, len(ret)))
 rolling_medium_df  = calculate_rolling_average(ret, min(medium, len(ret)))
