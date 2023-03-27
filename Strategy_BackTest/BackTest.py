@@ -59,7 +59,6 @@ def monte_carlo(Y):
         weights = np.random.dirichlet(np.ones(len(Y.columns)), size=1)
         weights = np.squeeze(weights)
         
-        # Enforce minimum weight
         weights = np.maximum(weights, 0.05)
         weights = weights/np.sum(weights)
         all_weights[ind,:] = weights
