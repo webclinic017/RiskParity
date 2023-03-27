@@ -19,13 +19,14 @@ warnings.filterwarnings("ignore")
 # Variables and setup
 ############################################################
 
+
 #setup (1 = True):
 ls        = 1
 monte     = 1
 trend     = 'sma'
 Rf        = 0.2
 benchmark = ['VTI','BND']
-Scalar    = 1000
+Scalar    = 500
 
 date1 = datetime.strptime(Start, "%Y-%m-%d")
 date2 = datetime.strptime(End, "%Y-%m-%d")
@@ -126,7 +127,7 @@ def forfrontier(arr, i):
 ############################################################
 # Backtesting
 ############################################################
-def backtest(rng_start, ret, ret_pct, df_Long_short):
+def backtest(rng_start, ret, ret_pct, trend_df):
     print("Iterating: ", number_of_iter * Scalar)
     y_next = portfolio_return_concat = portfolio_return = weight_concat = sharpe_array_concat = pd.DataFrame([])
     for i in rng_start:
@@ -140,24 +141,25 @@ def backtest(rng_start, ret, ret_pct, df_Long_short):
 
             else:
                 Y = ret[i:b]
-                Y_adjusted = asset_trimmer(b, df_Long_short, Y)
+                Y_adjusted = asset_trimmer(b, trend_df, Y)
                 if not Y_adjusted.empty:
                     w, sharpe_ratio = monte_carlo(Y_adjusted) #Long
                     next_i,next_b = next_month(i)
                     weight_concat = weightings(w, Y_adjusted, next_i, weight_concat, sharpe_array_concat, sharpe_ratio)
                     y_next = ret_pct[next_i:next_b]
-                    Y_adjusted_next_L = asset_trimmer(b, df_Long_short, y_next) #Long
+                    Y_adjusted_next_L = asset_trimmer(b, trend_df, y_next) #Long
                     portfolio_return = portfolio_returns(w, Y_adjusted_next_L) #Long
 
                 prev_i = i
                 prev_b = b
-                portfolio_return_concat = pd.concat([portfolio_return, portfolio_return_concat], axis=0) #Long
-    portfolio_return_concat = pd.DataFrame(pd.DataFrame(portfolio_return_concat))
+                portfolio_return_concat = pd.concat([portfolio_return_concat, portfolio_return], axis=0) #Long
+    portfolio_return_concat = pd.DataFrame(portfolio_return_concat)
     return portfolio_return_concat, weight_concat
 
 # Function to drop if the asset is not trending.
-def asset_trimmer(b, df_monthly, Y):
-    df_split_monthly = df_monthly[b:b]
+def asset_trimmer(b, trend_df, Y):
+    df_split_monthly = trend_df[b:b]
+    print(trend_df)
     cols_to_drop = [col for col in df_split_monthly.columns if df_split_monthly[col].max() < 0.8]
     Y = Y.drop(columns=cols_to_drop)
     return Y
@@ -200,7 +202,7 @@ elif trend == 'long_short':
     rolling_long_df = df_Long_short
 elif trend == 'sma':
     rolling_long_df = dummy_L_df
-
+print(dummy_L_df)
 # Data management of weights and returns.
 portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret.pct_change(), rolling_long_df)
 
@@ -210,11 +212,9 @@ weight_concat.drop('sharpe', axis=1, inplace=True)
 this_month_weight = weight_concat.iloc[-1]
 this_month_weight = pd.DataFrame([this_month_weight])
 weight_concat = weight_concat.drop(index=weight_concat.index[-1])
-
 ############################################################
 # Spy returns & portfolio returns
 ############################################################
-
 
 Bench_start = portfolio_return_concat.index.min()
 
@@ -238,12 +238,9 @@ def bench(Bench_start, benchmark):
 Bench = bench(Bench_start, benchmark)
 benchmark = 'Bench_Return'
 
-portfolio_return_concat = portfolio_return_concat.sort_index(sort_remaining=False)
-
 merged_df = portfolio_return_concat
 merged_df.iloc[0] = 0
 merged_df = (1 + merged_df).cumprod() * 10000
-
 def long_names(asset_classes, weight):
     mapping_dict = dict(zip(asset_classes['Asset'], asset_classes['Full_name']))
     weight_long = weight.rename(columns=mapping_dict)

@@ -16,7 +16,7 @@ prices, asset_classes, asset = datamanagement_1(Start, End)
 ret = data_management_2(prices, asset_classes, asset)
 
 def calculate_rolling_average(ret, days):
-    ret = ret.dropna()
+    #ret = ret.dropna()
     rolling_df = pd.DataFrame()
     for column in ret.columns:
         rolling_df[column] = ret[column].rolling(window=200).mean()
@@ -39,7 +39,7 @@ def dummy_sma(rolling_df, ret):
     return dummy_L_df
 
 dummy_L_df = calculate_rolling_average(ret, 200)
-
+'''
 rolling_short_df   = calculate_rolling_average(ret, min(short, len(ret)))
 rolling_medium_df  = calculate_rolling_average(ret, min(medium, len(ret)))
 rolling_long_df    = calculate_rolling_average(ret, min(long, len(ret)))
@@ -52,6 +52,7 @@ for asset_name in rolling_long_df.columns:
     df_Long_short[asset_name] = ((rolling_short_df[asset_name] ==1) & (rolling_long_df[asset_name]==1)).astype(int)
 
 df_Long_short  = df_Long_short.resample('M').mean()
+'''
 '''
 Do I need a shorter  timeframe?
 So if the long term trend is up, and say short term trend is down, then the market has pivoted and we don't want to invest in that asset.
@@ -94,7 +95,6 @@ n = 5
 count = rsi_df.groupby(pd.Grouper(freq='M')).apply(lambda x: (x > 70).sum())
 new_cool_df = count.where(count <= n, 1).where(count > n, 0).resample('M').last()
 
-print(new_cool_df.to_string())
 '''
 For the RSI, is there some kind of curve to tell me that in nov we shoul
 
