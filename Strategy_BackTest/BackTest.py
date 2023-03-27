@@ -13,7 +13,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
 #from optimizer import optimizer_backtest
-from Trend_Following import ret, Start, End, number_of_iter, asset_classes, rolling_short_df, rolling_medium_df, rolling_long_df, df_Long_short, new_cool_df, rsi_df
+from Trend_Following import ret, Start, End, number_of_iter, asset_classes, rolling_long_df, df_Long_short, new_cool_df, rsi_df, dummy_L_df
 warnings.filterwarnings("ignore")
 ############################################################
 # Variables and setup
@@ -22,7 +22,7 @@ warnings.filterwarnings("ignore")
 #setup (1 = True):
 ls        = 1
 monte     = 1
-trend     = 'long_short'
+trend     = 'sma'
 Rf        = 0.2
 benchmark = ['VTI','BND']
 Scalar    = 1000
@@ -196,10 +196,10 @@ def correlation_matrix(sharpe_array, column):
 
 if   trend == 'rsi':
     rolling_long_df = rsi_df
-elif trend == 'sma':
-    rolling_long_df = df_Long_short
 elif trend == 'long_short':
-    rolling_long_df = new_cool_df
+    rolling_long_df = df_Long_short
+elif trend == 'sma':
+    rolling_long_df = dummy_L_df
 
 # Data management of weights and returns.
 portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret.pct_change(), rolling_long_df)
