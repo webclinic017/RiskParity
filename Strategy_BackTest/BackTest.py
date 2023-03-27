@@ -13,7 +13,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
 #from optimizer import optimizer_backtest
-from Trend_Following import ret, Start, End, number_of_iter, asset_classes, rolling_long_df, df_Long_short, rsi_df, dummy_L_df
+from Trend_Following import ret, Start, End, number_of_iter, asset_classes, rsi_df, dummy_L_df #, rolling_long_df, df_Long_short
 warnings.filterwarnings("ignore")
 ############################################################
 # Variables and setup
@@ -159,7 +159,6 @@ def backtest(rng_start, ret, ret_pct, trend_df):
 # Function to drop if the asset is not trending.
 def asset_trimmer(b, trend_df, Y):
     df_split_monthly = trend_df[b:b]
-    print(trend_df)
     cols_to_drop = [col for col in df_split_monthly.columns if df_split_monthly[col].max() < 0.8]
     Y = Y.drop(columns=cols_to_drop)
     return Y
@@ -198,8 +197,6 @@ def correlation_matrix(sharpe_array, column):
 
 if   trend == 'rsi':
     rolling_long_df = rsi_df
-elif trend == 'long_short':
-    rolling_long_df = df_Long_short
 elif trend == 'sma':
     rolling_long_df = dummy_L_df
 print(dummy_L_df)

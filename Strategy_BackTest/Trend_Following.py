@@ -5,7 +5,7 @@ import numpy as np
 import math
 from datetime import date
 import matplotlib.pyplot as plt
-Start = '2010-01-01'
+Start = '2015-01-01'
 End = date.today().strftime("%Y-%m-%d")
 number_of_iter = 1
 long    = 200
@@ -16,7 +16,7 @@ prices, asset_classes, asset = datamanagement_1(Start, End)
 ret = data_management_2(prices, asset_classes, asset)
 
 def calculate_rolling_average(ret, days):
-    #ret = ret.dropna()
+    ret = ret.dropna()
     rolling_df = pd.DataFrame()
     for column in ret.columns:
         rolling_df[column] = ret[column].rolling(window=200).mean()
@@ -37,8 +37,9 @@ def dummy_sma(rolling_df, ret):
     dummy_L_df  = dummy_L_df.resample('M').mean()
 
     return dummy_L_df
-
 dummy_L_df = calculate_rolling_average(ret, 200)
+print(dummy_L_df)
+
 '''
 rolling_short_df   = calculate_rolling_average(ret, min(short, len(ret)))
 rolling_medium_df  = calculate_rolling_average(ret, min(medium, len(ret)))
