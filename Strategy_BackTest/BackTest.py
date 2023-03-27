@@ -22,10 +22,10 @@ warnings.filterwarnings("ignore")
 #setup (1 = True):
 ls        = 1
 monte     = 1
-rsi       = 0
+trend     = 'sma'
 Rf        = 0.2
 benchmark = ['VTI','BND']
-Scalar = 1000
+Scalar    = 1000
 
 date1 = datetime.strptime(Start, "%Y-%m-%d")
 date2 = datetime.strptime(End, "%Y-%m-%d")
@@ -127,7 +127,7 @@ def forfrontier(arr, i):
 ############################################################
 # Backtesting
 ############################################################
-def backtest(rng_start, ret, ret_pct, rolling_short_df, rolling_medium_df, rolling_long_df, df_Long_short):
+def backtest(rng_start, ret, ret_pct, df_Long_short):
     print("Iterating: ", number_of_iter * Scalar)
     y_next = portfolio_return_concat = portfolio_return = weight_concat = sharpe_array_concat = pd.DataFrame([])
     for i in rng_start:
@@ -195,14 +195,15 @@ def correlation_matrix(sharpe_array, column):
 # Calling my functions
 ############################################################
 
-if rsi == 1:
+if   trend == 'rsi':
     rolling_long_df = rsi_df
-else:
-    rolling_long_df = rolling_long_df
-df_Long_short = new_cool_df
-print(df_Long_short.index.to_list())
+elif trend == 'sma':
+    rolling_long_df = df_Long_short
+elif trend == 'long_short':
+    rolling_long_df = new_cool_df
+
 # Data management of weights and returns.
-portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret.pct_change(), rolling_short_df, rolling_medium_df, rolling_long_df, df_Long_short)
+portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret.pct_change(), rolling_long_df)
 
 sharpe_array = weight_concat.copy()
 weight_concat.drop('sharpe', axis=1, inplace=True)

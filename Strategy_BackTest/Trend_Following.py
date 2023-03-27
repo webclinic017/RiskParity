@@ -49,7 +49,7 @@ for asset_name in rolling_long_df.columns:
     df_Long_short[asset_name] = ((rolling_short_df[asset_name] ==1) & (rolling_long_df[asset_name]==1)).astype(int)
 
 df_Long_short  = df_Long_short.resample('M').mean()
-
+print(df_Long_short)
 '''
 Do I need a shorter  timeframe?
 So if the long term trend is up, and say short term trend is down, then the market has pivoted and we don't want to invest in that asset.
@@ -90,24 +90,7 @@ rsi_df = calculate_monthly_rsi(ret)
 # Now, if the row for a specific contract is <0, then we can exclude it from our sample set, and it is not needed. This is part of the asset selection component.
 
 count = rsi_df.groupby(pd.Grouper(freq='M')).apply(lambda x: (x > 70).sum())
-resampled = count.where(count < 10, 0).where(count >= 10, 1).resample('M').last()
-
-
-month_df = new_cool_df = pd.DataFrame([])
-for col in df_Long_short.columns:
-    month_df = pd.DataFrame(index=df_Long_short.index)
-    month_df['Month'] = df_Long_short.index.month
-
-    # Merge the month_df and resampled DataFrames on the month index
-    merged_df = month_df.merge(resampled, left_index=True, right_index=True)
-
-    # Apply the desired condition to create the new DataFrame
-    new_df = merged_df.apply(lambda x: 1 if (x['Month'] == 1 and x[0] == 1) else 0, axis=1)
-    new_df = pd.DataFrame(new_df)
-    new_df = new_df.rename(columns={new_df.columns[0]: col})
-    new_cool_df = new_df
-    #new_cool_df = pd.concat([new_df,new_cool_df])
-print(new_df)
+new_cool_df = count.where(count <= 10, 0).where(count > 10, 1).resample('M').last()
 
 
 '''
