@@ -13,7 +13,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
 #from optimizer import optimizer_backtest
-from Trend_Following import ret, Start, End, number_of_iter, asset_classes, rolling_long_df, df_Long_short, new_cool_df, rsi_df, dummy_L_df
+from Trend_Following import ret, Start, End, number_of_iter, asset_classes, rolling_long_df, df_Long_short, rsi_df, dummy_L_df
 warnings.filterwarnings("ignore")
 ############################################################
 # Variables and setup

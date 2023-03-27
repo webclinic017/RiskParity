@@ -14,18 +14,18 @@ short   = 30
 
 prices, asset_classes, asset = datamanagement_1(Start, End)
 ret = data_management_2(prices, asset_classes, asset)
-def calculate_rolling_average(ret, window):
+def calculate_rolling_average(ret):
     ret = ret.dropna()
     rolling_df = pd.DataFrame()
     for column in ret.columns:
         rolling_df[column] = ret[column].rolling(window=200).mean()
-    rolling_df = dummy_sma(rolling_df, ret, window)
+    rolling_df = dummy_sma(rolling_df, ret)
     return rolling_df
 
 # Now we need to use this to determine what assets to hold. So for each month, we need to know if the asset is trending.
 # To do this, I think for each day, we can have a dummy, 1 for above sma and 2 for below sma.
 
-def dummy_sma(rolling_df, ret, days):
+def dummy_sma(rolling_df, ret):
     dummy_L_df = pd.DataFrame(index=rolling_df.index)
     for asset_name in rolling_df.columns:
     # Skip non-numeric columns
@@ -36,6 +36,8 @@ def dummy_sma(rolling_df, ret, days):
     dummy_L_df  = dummy_L_df.resample('M').mean()
 
     return dummy_L_df
+
+dummy_L_df = calculate_rolling_average(ret)
 
 rolling_short_df   = calculate_rolling_average(ret, min(short, len(ret)))
 rolling_medium_df  = calculate_rolling_average(ret, min(medium, len(ret)))
