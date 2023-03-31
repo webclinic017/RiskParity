@@ -26,7 +26,7 @@ monte     = 1
 trend     = 'sma'
 Rf        = 0.2
 benchmark = ['VTI','BND']
-Scalar    = 500
+Scalar    = 5000
 
 date1 = datetime.strptime(Start, "%Y-%m-%d")
 date2 = datetime.strptime(End, "%Y-%m-%d")
@@ -450,4 +450,10 @@ Next steps:
 New project:
 -For each month, rate us on how well we selected assets based on the next months weightings, if the weightings are within a bounds then we are ok, if they are 
     below the previous month then take note that we were in too deep with this asset class, so next time we think of re-balancing by increasing this asset, we can essentially rate our scores.
-'''
+
+###############
+
+Do a manual back test, checking each month 1 by 1 and see if the previous month is similar on another run, so increment the months by one to check.
+    
+############### 
+    '''

@@ -7,7 +7,7 @@ from datetime import date
 import matplotlib.pyplot as plt
 Start = '2015-01-01'
 End = date.today().strftime("%Y-%m-%d")
-number_of_iter = 1
+number_of_iter = 1000
 long    = 200
 medium  = 100
 short   = 30
