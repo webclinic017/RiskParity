@@ -26,7 +26,7 @@ monte     = 1
 trend     = 'sma'
 Rf        = 0.2
 benchmark = ['VTI','BND']
-Scalar    = 5000
+Scalar    = 50
 
 date1 = datetime.strptime(Start, "%Y-%m-%d")
 date2 = datetime.strptime(End, "%Y-%m-%d")
