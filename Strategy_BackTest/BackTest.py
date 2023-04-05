@@ -49,18 +49,17 @@ merged_df = sharpe_array = df_dummy_sum = df_dummy_sum =this_month_weight = pd.D
 def monte_carlo(Y):
     log_return  = np.log(Y/Y.shift(1))
     sample      = Y.shape[0]
-    num_ports   = 10# number_of_iter * Scalar 
+    num_ports   = 5# number_of_iter * Scalar 
     all_weights = np.zeros((num_ports, len(Y.columns)))
     ret_arr     = np.zeros(num_ports)
     vol_arr     = np.zeros(num_ports)
     sharpe_arr  = np.zeros(num_ports)
-
     for ind in range(num_ports): 
         # weights 
         weights = np.random.dirichlet(np.ones(len(Y.columns)), size=1)
+        weights[weights < 0.2] = 0
+
         weights = np.squeeze(weights)
-        
-        weights = np.maximum(weights, 0.05)
         weights = weights/np.sum(weights)
         all_weights[ind,:] = weights
         
@@ -71,13 +70,11 @@ def monte_carlo(Y):
         vol_arr[ind] = np.sqrt(np.dot(weights.T,np.dot(log_return.cov()*sample, weights)))
 
         # Sharpe Ratio 
-        sharpe_arr[ind] = (ret_arr[ind] - Rf)/vol_arr[ind]
+        sharpe_arr[ind] = (ret_arr[ind] - (Rf/12))/vol_arr[ind]
     max_sh = sharpe_arr.argmax()
     #plot_frontier(vol_arr,ret_arr,sharpe_arr)
-    sharpe_ratio = ret_arr[max_sh]/vol_arr[max_sh]
-    print(ret_arr, vol_arr)
-    print("SHEHRHERE")
-    print(weights)
+    sharpe_ratio = (ret_arr[max_sh]- (Rf/12))/vol_arr[max_sh]
+    print(all_weights)
     return all_weights[max_sh,:], sharpe_ratio
 
 ############################################################
