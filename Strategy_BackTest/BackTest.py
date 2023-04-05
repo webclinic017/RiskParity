@@ -26,7 +26,7 @@ monte     = 1
 trend     = 'sma'
 Rf        = 0.2
 benchmark = ['VTI','BND']
-Scalar    = 50
+Scalar    = 1 #50
 
 date1 = datetime.strptime(Start, "%Y-%m-%d")
 date2 = datetime.strptime(End, "%Y-%m-%d")
@@ -75,7 +75,7 @@ def monte_carlo(Y):
     max_sh = sharpe_arr.argmax()
     #plot_frontier(vol_arr,ret_arr,sharpe_arr)
     sharpe_ratio = ret_arr[max_sh]/vol_arr[max_sh]
-
+    print(ret_arr, vol_arr)
     return all_weights[max_sh,:], sharpe_ratio
 
 ############################################################
