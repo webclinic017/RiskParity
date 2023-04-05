@@ -57,10 +57,16 @@ def monte_carlo(Y):
     for ind in range(num_ports): 
         # weights 
         weights = np.random.dirichlet(np.ones(len(Y.columns)), size=1)
-        weights[weights < 0.2] = 0
+        print(weights)
+        weights[weights < 0.4] = 0
+        print(weights)
 
         weights = np.squeeze(weights)
+        print(weights)
+
         weights = weights/np.sum(weights)
+        print(weights)
+
         all_weights[ind,:] = weights
         
         # expected return 
@@ -74,7 +80,6 @@ def monte_carlo(Y):
     max_sh = sharpe_arr.argmax()
     #plot_frontier(vol_arr,ret_arr,sharpe_arr)
     sharpe_ratio = (ret_arr[max_sh]- (Rf/12))/vol_arr[max_sh]
-    print(all_weights)
     return all_weights[max_sh,:], sharpe_ratio
 
 ############################################################
