@@ -49,7 +49,7 @@ merged_df = sharpe_array = df_dummy_sum = df_dummy_sum =this_month_weight = pd.D
 def monte_carlo(Y):
     log_return  = np.log(Y/Y.shift(1))
     sample      = Y.shape[0]
-    num_ports   = number_of_iter * Scalar
+    num_ports   = number_of_iter * Scalar / 10
     all_weights = np.zeros((num_ports, len(Y.columns)))
     ret_arr     = np.zeros(num_ports)
     vol_arr     = np.zeros(num_ports)
