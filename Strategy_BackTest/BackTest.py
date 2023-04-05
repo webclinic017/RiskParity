@@ -26,7 +26,7 @@ monte     = 1
 trend     = 'sma'
 Rf        = 0.2
 benchmark = ['VTI','BND']
-Scalar    = 1 #50
+Scalar    = 5
 
 date1 = datetime.strptime(Start, "%Y-%m-%d")
 date2 = datetime.strptime(End, "%Y-%m-%d")
@@ -49,7 +49,7 @@ merged_df = sharpe_array = df_dummy_sum = df_dummy_sum =this_month_weight = pd.D
 def monte_carlo(Y):
     log_return  = np.log(Y/Y.shift(1))
     sample      = Y.shape[0]
-    num_ports   = 5# number_of_iter * Scalar 
+    num_ports   = number_of_iter * Scalar 
     all_weights = np.zeros((num_ports, len(Y.columns)))
     ret_arr     = np.zeros(num_ports)
     vol_arr     = np.zeros(num_ports)
@@ -57,15 +57,11 @@ def monte_carlo(Y):
     for ind in range(num_ports): 
         # weights 
         weights = np.random.dirichlet(np.ones(len(Y.columns)), size=1)
-        print(weights)
-        weights[weights < 0.4] = 0
-        print(weights)
+        weights[weights < 0.1] = 0
 
         weights = np.squeeze(weights)
-        print(weights)
 
         weights = weights/np.sum(weights)
-        print(weights)
 
         all_weights[ind,:] = weights
         
@@ -80,7 +76,7 @@ def monte_carlo(Y):
     max_sh = sharpe_arr.argmax()
     #plot_frontier(vol_arr,ret_arr,sharpe_arr)
     sharpe_ratio = (ret_arr[max_sh]- (Rf/12))/vol_arr[max_sh]
-    return all_weights[max_sh,:], sharpe_ratio
+    return all_weights[max_sh,:], sharpe_ratio, vol_arr,ret_arr,sharpe_arr
 
 ############################################################
 
@@ -131,9 +127,10 @@ def forfrontier(arr, i):
 ############################################################
 # Backtesting
 ############################################################
+
 def backtest(rng_start, ret, ret_pct, trend_df):
     print("Iterating: ", number_of_iter * Scalar)
-    y_next = portfolio_return_concat = portfolio_return = weight_concat = sharpe_array_concat = pd.DataFrame([])
+    vol_arr = vol_arr_concat = ret_arr_concat = sharpe_arr_concat = ret_arr = sharpe_arr = y_next = portfolio_return_concat = portfolio_return = weight_concat = sharpe_array_concat = pd.DataFrame([])
     for i in rng_start:
         rng_end = pd.date_range(i, periods=1, freq='M')
         for b in rng_end:
@@ -141,24 +138,30 @@ def backtest(rng_start, ret, ret_pct, trend_df):
             if rng_start[-1] == i and prev_i is not None and prev_b is not None:
                 print(f"Last month {i}")
                 Y = ret[prev_i:prev_b]
-                w, sharpe_ratio = monte_carlo(Y_adjusted) #Long
+                w, sharpe_ratio, vol_arr,ret_arr,sharpe_arr = monte_carlo(Y_adjusted) #Long
 
             else:
                 Y = ret[i:b]
                 Y_adjusted = asset_trimmer(b, trend_df, Y)
                 if not Y_adjusted.empty:
-                    w, sharpe_ratio = monte_carlo(Y_adjusted) #Long
+                    w, sharpe_ratio, vol_arr,ret_arr,sharpe_arr = monte_carlo(Y_adjusted) #Long
                     next_i,next_b = next_month(i)
                     weight_concat = weightings(w, Y_adjusted, next_i, weight_concat, sharpe_array_concat, sharpe_ratio)
                     y_next = ret_pct[next_i:next_b]
                     Y_adjusted_next_L = asset_trimmer(b, trend_df, y_next) #Long
                     portfolio_return = portfolio_returns(w, Y_adjusted_next_L) #Long
-
+                    vol_arr = forfrontier(vol_arr, i)
+                    ret_arr = forfrontier(ret_arr, i)
+                    sharpe_arr = forfrontier(sharpe_arr, i)
+                        
+                vol_arr_concat = pd.concat([vol_arr, vol_arr_concat], axis=0)
+                ret_arr_concat = pd.concat([ret_arr, ret_arr_concat], axis=0)
+                sharpe_arr_concat = pd.concat([sharpe_arr, sharpe_arr_concat], axis=0)
                 prev_i = i
                 prev_b = b
                 portfolio_return_concat = pd.concat([portfolio_return_concat, portfolio_return], axis=0) #Long
     portfolio_return_concat = pd.DataFrame(portfolio_return_concat)
-    return portfolio_return_concat, weight_concat
+    return portfolio_return_concat, weight_concat, vol_arr_concat,ret_arr_concat,sharpe_arr_concat
 
 # Function to drop if the asset is not trending.
 def asset_trimmer(b, trend_df, Y):
@@ -204,7 +207,7 @@ if   trend == 'rsi':
 elif trend == 'sma':
     rolling_long_df = dummy_L_df
 # Data management of weights and returns.
-portfolio_return_concat, weight_concat = backtest(rng_start, ret, ret.pct_change(), rolling_long_df)
+portfolio_return_concat, weight_concat, vol_arr, ret_arr, sharpe_arr  = backtest(rng_start, ret, ret.pct_change(), rolling_long_df)
 
 sharpe_array = weight_concat.copy()
 weight_concat.drop('sharpe', axis=1, inplace=True)
@@ -217,14 +220,13 @@ weight_concat = weight_concat.drop(index=weight_concat.index[-1])
 ############################################################
 
 Bench_start = portfolio_return_concat.index.min()
-
 def bench(Bench_start, benchmark):
     Bench_W = Bench = pd.DataFrame([])
     for i in benchmark:
         if i == 'VTI':
-            Bench_W = yf.download(i, start=Bench_start, Bench_end=End)['Adj Close'].pct_change() * 0.6
+            Bench_W = yf.download(i, start=Bench_start, end=End)['Adj Close'].pct_change() * 0.6
         else:
-            Bench_W = yf.download(i, start=Bench_start, Bench_end=End)['Adj Close'].pct_change() * 0.4
+            Bench_W = yf.download(i, start=Bench_start, end=End)['Adj Close'].pct_change() * 0.4
         Bench = pd.concat([Bench, Bench_W], axis=1)
     Bench = pd.DataFrame(pd.DataFrame(Bench)).sum(axis=1)
     Bench.iloc[0] = 0
@@ -311,6 +313,8 @@ def portfolio_data(df, col, num_days, average_number_days):
     Sharpe_Ratio =  np.sqrt(average_number_days) * (Average_Returns / std)
     return Net_Returns, std, Sharpe_Ratio
 
+
+
 def last_month_data(df, col):
     last_month_returns = df.resample('M').mean().iloc[-2]
     last_month_std_returns = df.resample('M').std().iloc[-2]
@@ -318,7 +322,34 @@ def last_month_data(df, col):
     last_month_sharpe_ratio = last_month_sharpe_ratio.astype(np.float64).values
     return last_month_sharpe_ratio
 
-def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_array, Bench):
+def frontier_chart(vol_arr, ret_arr, sharpe_arr, selected_index):
+    vol_arr = vol_arr.T
+    ret_arr = ret_arr.T
+    sharpe_arr = sharpe_arr.T
+    #selected_index = selected_index.strftime('%Y-%m-%d')
+    trace = go.Scatter(x=vol_arr[selected_index], y=ret_arr[selected_index], mode='markers', 
+                    marker=dict(color=sharpe_arr[selected_index], colorscale='Viridis', size=8))
+
+        # create the layout
+    layout = go.Layout(title='Efficient Frontier',
+                    xaxis_title='Volatility',
+                    yaxis_title='Returns',
+                    coloraxis_colorbar=dict(title='Sharpe Ratio'))
+    sharpe_max = sharpe_arr[selected_index].max()
+    location = sharpe_arr[sharpe_arr == sharpe_max].stack().index#.tolist()
+    ret_max = ret_arr[selected_index]
+    vol_max = vol_arr[selected_index]
+    location = location[0][0]
+    max_ret = ret_max[location]
+    max_vol = vol_max[location]
+    # plot the dataplt.figure(figsize=(12,8))
+    frontier = go.Figure(data=[trace], layout=layout)
+    frontier.add_trace(go.Scatter(x=[max_vol], y=[max_ret], mode = 'markers',
+                         marker_symbol = 'circle',
+                         marker_size = 10))
+    return frontier
+
+def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_array, Bench, vol_arr, ret_arr, sharpe_arr):
     # Calculate summary statistics for portfolio returns
     num_years = (returns_df.index.max() - returns_df.index.min()).days / 365
     num_days = len(returns_df)
@@ -344,6 +375,8 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
     corr_matrix = corr_matrix.sort_values(by='sharpe', ascending=True)
     corr_matrix_long = long_names(asset_classes, corr_matrix.T).T
     corr_matrix, corr_matrix_long = df_merger(corr_matrix, corr_matrix_long)
+    ret_arr_list = ret_arr.index.strftime('%Y-%m-%d').tolist()
+
     data = [
         go.Heatmap(
             z=corr_matrix.values,
@@ -430,16 +463,29 @@ def portfolio_returns_app(returns_df, weights_df, this_month_weight, sharpe_arra
                    'height': '90vh',
                    'font-family': 'Arial',
                    'font-size': '12px',}
-    )
-    ])
-    
+        ),
+    html.H3([
+        dcc.Graph(id='efficient-frontier', 
+                    figure=frontier_chart(vol_arr, ret_arr, sharpe_arr, ret_arr.index[0])),
+        dcc.Dropdown(id='vol-dropdown', 
+                    options=ret_arr_list, #[0,1,2,3,4]
+                    value=0)
+            ])
+        ])
+    @app.callback(
+            Output('efficient-frontier', 'figure'),
+            [Input('vol-dropdown', 'value')])
+    def update_graph(selected_index):
+        frontier = frontier_chart(vol_arr, ret_arr, sharpe_arr, selected_index)
+        return frontier
+
     return app
 
 
 
 
 
-app = portfolio_returns_app(merged_df, weight_concat, this_month_weight, sharpe_array, Bench)
+app = portfolio_returns_app(merged_df, weight_concat, this_month_weight, sharpe_array, Bench, vol_arr, ret_arr, sharpe_arr)
 app.run_server(debug=False)
 
 '''
