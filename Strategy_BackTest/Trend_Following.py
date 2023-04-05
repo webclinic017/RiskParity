@@ -17,6 +17,8 @@ ret = data_management_2(prices, asset_classes, asset).dropna()
 '''
 I need to exclude the columns until there are 200 days worth of data, if there is not 200 days, then set to 0
 '''
+print(ret)
+
 def calculate_rolling_average(ret, days):
     ret = ret.dropna()
     rolling_df = pd.DataFrame()
